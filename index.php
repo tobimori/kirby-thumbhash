@@ -8,29 +8,30 @@ use tobimori\ThumbHash;
 App::plugin('tobimori/thumbhash', [
   'fileMethods' => [
     /** @kql-allowed */
-    'thumbhash' => fn (float|null $ratio = null) => ThumbHash::encode($this, $ratio),
+    'thumbhash' => fn (array $options = []) => ThumbHash::encode($this, $options),
     /** @kql-allowed */
-    'th' => fn (float|null $ratio = null) => $this->thumbhash($ratio),
+    'th' => fn (array $options = []) => $this->thumbhash($options),
     /** @kql-allowed */
-    'thumbhashUri' => fn (float|null $ratio = null) => ThumbHash::thumb($this, $ratio),
+    'thumbhashUri' => fn (array $options = []) => ThumbHash::thumb($this, $options),
     /** @kql-allowed */
-    'thUri' => fn (float|null $ratio = null) => $this->thumbhashUri($ratio),
+    'thUri' => fn (array $options = []) => $this->thumbhashUri($options),
   ],
   'assetMethods' => [
     /** @kql-allowed */
-    'thumbhash' => fn (float|null $ratio = null) => ThumbHash::encode($this, $ratio),
+    'thumbhash' => fn (array $options = []) => ThumbHash::encode($this, $options),
     /** @kql-allowed */
-    'th' => fn (float|null $ratio = null) => $this->thumbhash($ratio),
+    'th' => fn (array $options = []) => $this->thumbhash($options),
     /** @kql-allowed */
-    'thumbhashUri' => fn (float|null $ratio = null) => ThumbHash::thumb($this, $ratio),
+    'thumbhashUri' => fn (array $options = []) => ThumbHash::thumb($this, $options),
     /** @kql-allowed */
-    'thUri' => fn (float|null $ratio = null) => $this->thumbhashUri($ratio),
+    'thUri' => fn (array $options = []) => $this->thumbhashUri($options),
   ],
   'options' => [
-    'cache.encode' => true,
-    'cache.decode' => true,
+    'cache.encode' => false,
+    'cache.decode' => false,
     //'engine' => 'gd', // `gd` or `imagick` - TODO
-    'decodeTarget' => 100, // Pixel Target (width * height = ~P) for decoding
+    'blurRadius' => 1, // Blur radius, larger values are smoother, but less accurate
+    'sampleMaxSize' => 100, // Max width or height for smaller image that gets encoded (Memory constraints)
   ],
   'hooks' => [
     'file.update:before' => fn ($file) => ThumbHash::clearCache($file),

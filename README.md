@@ -78,7 +78,7 @@ Kirby doesn't support file methods on cropped images, so you'll have to use the 
 ```php
 <?php $cropped = $original->crop(500, 400) ?>
 <img
-  src="<?= $original->thumbhashUri(5/4) ?>"
+  src="<?= $original->thumbhashUri(['ratio' => 5/4]) ?>"
   data-src="<?= $cropped->url() ?>"
   data-lazyload
   alt="<?= $original->alt() ?>"
@@ -105,6 +105,16 @@ $file->th(); // thumbhash()
 $file->thUri(); // thumbhashUri()
 ```
 
+### Options
+
+Each method also allows you to specify the ratio and blur radius as options array.
+
+```php
+$file->thumbhash([ 'ratio' => 16/9 ]); // will return thumbhash string, cropped to 16:9
+$file->thumbhashUri([ 'blur' => 2 ]); // will return placeholder, encoded in an svg with blur filter
+$file->thumbhashUri([ 'ratio' => 3/2, 'blur' => 0 ]); // will return placeholder as base64-encoded png without filter, cropped to 3:2
+```
+
 ### Clear cache
 
 The encoding cache is automatically cleared when an image gets replaced or updated, however you can also clear the cache manually with the `clearCache` static method:
@@ -121,11 +131,12 @@ This might be helpful when you use third party plugins to edit your images, and 
 
 ## Options
 
-| Option          | Default | Description                                                                    |
-| --------------- | ------- | ------------------------------------------------------------------------------ |
-| `cache.decode`  | `true`  | Enable decoding cache                                                          |
-| `cache.encode`  | `true`  | Enable encoding cache                                                          |
-| `sampleMaxSize` | `100`   | Max width or height for smaller image that gets encoded (watch out for memory) |
+| Option          | Default | Description                                                                              |
+| --------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `cache.decode`  | `true`  | Enable decoding cache                                                                    |
+| `cache.encode`  | `true`  | Enable encoding cache                                                                    |
+| `sampleMaxSize` | `100`   | Max width or height for smaller image that gets encoded (watch out for memory)           |
+| `blurRadius`    | `1`     | Default radius of the SVG blur filter applied decoded image, set to 0 for raw base64 png |
 
 Options allow you to fine tune the behaviour of the plugin. You can set them in your `config.php` file:
 
@@ -133,13 +144,10 @@ Options allow you to fine tune the behaviour of the plugin. You can set them in 
 return [
     'tobimori.thumbhash' => [
         'sampleMaxSize' => 100,
+        'blurRadius' => 1,
     ],
 ];
 ```
-
-## Comparison
-
-// TODO
 
 ## Credits
 

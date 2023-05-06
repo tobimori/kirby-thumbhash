@@ -1,10 +1,10 @@
 {
-  "name": "tobimori/kirby-blurhash",
-  "description": "Image placeholders with the optimized BlurHash integration",
+  "name": "tobimori/kirby-thumbhash",
+  "description": "Kirby Image placeholders with the smarter ThumbHash integration",
   "type": "kirby-plugin",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "license": "MIT",
-  "homepage": "https://github.com/tobimori/kirby-blurhash#readme",
+  "homepage": "https://github.com/tobimori/kirby-thumbhash#readme",
   "authors": [
     {
       "name": "Tobias Möritz",
