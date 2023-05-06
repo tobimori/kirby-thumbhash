@@ -1,4 +1,4 @@
-![Kirby ThumbHash Banner](./.github/banner.png)
+![Kirby ThumbHash Banner](./.github/gh-banner.png)
 
 # Kirby ThumbHash
 
