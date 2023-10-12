@@ -27,8 +27,8 @@ App::plugin('tobimori/thumbhash', [
     'thUri' => fn (array $options = []) => $this->thumbhashUri($options),
   ],
   'options' => [
-    'cache.encode' => false,
-    'cache.decode' => false,
+    'cache.encode' => true,
+    'cache.decode' => true,
     //'engine' => 'gd', // `gd` or `imagick` - TODO
     'blurRadius' => 1, // Blur radius, larger values are smoother, but less accurate
     'sampleMaxSize' => 100, // Max width or height for smaller image that gets encoded (Memory constraints)
