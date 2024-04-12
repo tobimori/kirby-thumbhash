@@ -202,6 +202,6 @@ class ThumbHash
       return $file->mediaHash();
     }
 
-    return $file->uuid()->id() ?? $file->id();
+		return $file->uuid()?->id() ?? $file->id();
   }
 }
