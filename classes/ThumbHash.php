@@ -37,8 +37,8 @@ class ThumbHash
     // Generate a sample image for encode to avoid memory issues.
     $max = $kirby->option('tobimori.thumbhash.sampleMaxSize'); // Max width or height
 
-    $height = round($file->height() > $file->width() ? $max : $max / $options['ratio']);
-    $width = round($file->width() > $file->height() ? $max : $max * $options['ratio']);
+    $height = round($options['ratio'] < 1 ? $max : $max / $options['ratio']);
+    $width = round($options['ratio'] >= 1 ? $max : $max * $options['ratio']);
     $options = [
       'width' => $width,
       'height' => $height,
