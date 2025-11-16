@@ -3,6 +3,7 @@
 namespace tobimori;
 
 use Kirby\Cms\File;
+use Kirby\Exception\Exception;
 use Kirby\Filesystem\Asset;
 use Thumbhash\Thumbhash as THEncoder;
 
@@ -11,20 +12,24 @@ class ThumbHash
   /**
    * Creates thumb for an image based on the ThumbHash algorithm, returns a data URI with an SVG filter.
    */
-  public static function thumb(Asset|File $file, array $options = []): string
+  public static function thumb(Asset|File $file, array $options = []): ?string
   {
-    $hash = self::encode($file, $options); // Encode image with ThumbHash Algorithm
-    $rgba = self::decode($hash); // Decode ThumbHash to RGBA array
+    $hash = self::encode($file, $options);
+    if ($hash === null) {
+      return null;
+    }
 
-    return self::uri($rgba, $options); // Output image as data URI with SVG blur
+    $rgba = self::decode($hash);
+
+    return self::uri($rgba, $options);
   }
 
   /**
    * Returns the ThumbHash for a Kirby file object.
    */
-  public static function encode(Asset|File $file, array $options = []): string
+  public static function encode(Asset|File $file, array $options = []): ?string
   {
-    $kirby = kirby();
+    $kirby = App::instance();
 
     $id = self::getId($file);
     $options['ratio'] ??= $file->ratio();
@@ -34,20 +39,33 @@ class ThumbHash
       return $cacheData;
     }
 
-    // Generate a sample image for encode to avoid memory issues.
-    $max = $kirby->option('tobimori.thumbhash.sampleMaxSize'); // Max width or height
+    // generate a sample image for encode to avoid memory issues.
+    $max = $kirby->option('tobimori.thumbhash.sampleMaxSize');
 
-    $height = round($options['ratio'] < 1 ? $max : $max / $options['ratio']);
-    $width = round($options['ratio'] >= 1 ? $max : $max * $options['ratio']);
-    $options = [
-      'width' => $width,
-      'height' => $height,
+    $expectedHeight = round($options['ratio'] < 1 ? $max : $max / $options['ratio']);
+    $expectedWidth = round($options['ratio'] >= 1 ? $max : $max * $options['ratio']);
+    $thumbOptions = [
+      'width' => $expectedWidth,
+      'height' => $expectedHeight,
       'crop'  => true,
       'quality' => 70,
     ];
 
-    // Create a GD image from the file.
-    $image = imagecreatefromstring($file->thumb($options)->read()); // TODO: allow Imagick encoder
+    $thumb = $file->thumb($thumbOptions);
+    $actualWidth = $thumb->width();
+    $actualHeight = $thumb->height();
+
+    // check if dimensions differ by more than 10px
+    if (abs($actualWidth - $expectedWidth) > 10 || abs($actualHeight - $expectedHeight) > 10) {
+      if ($kirby->option('debug')) {
+        throw new Exception("[ThumbHash] Failed to generate thumbhash for {$file->filename()}: Image could not be resized to expected sample dimensions");
+      }
+
+      return null;
+    }
+
+    // create a gd image from the file.
+    $image = imagecreatefromstring($thumb->read());
     $height = imagesy($image);
     $width = imagesx($image);
     $pixels = [];
@@ -56,7 +74,7 @@ class ThumbHash
       for ($x = 0; $x < $width; $x++) {
         $color_index = imagecolorat($image, $x, $y);
         $color = imagecolorsforindex($image, $color_index);
-        $alpha = 255 - ceil($color['alpha'] * (255 / 127)); // GD only supports 7-bit alpha channel
+        $alpha = 255 - ceil($color['alpha'] * 255 / 127); // GD only supports 7-bit alpha channel
         $pixels[] = $color['red'];
         $pixels[] = $color['green'];
         $pixels[] = $color['blue'];
@@ -76,7 +94,7 @@ class ThumbHash
    */
   public static function decode(string|array $thumbhash): array
   {
-    $kirby = kirby();
+    $kirby = App::instance();
     $cache = $kirby->cache('tobimori.thumbhash.decode');
 
     $id = is_array($thumbhash) ? THEncoder::convertHashToString($thumbhash) : $thumbhash;
@@ -88,9 +106,7 @@ class ThumbHash
 
     $image = THEncoder::hashToRGBA($thumbhash);
     // check if any alpha value in RGBA array is less than 255
-    $transparent = array_reduce(array_chunk($image['rgba'], 4), function ($carry, $item) {
-      return $carry || $item[3] < 255;
-    }, false);
+    $transparent = array_reduce(array_chunk($image['rgba'], 4), fn($carry, $item) => $carry || $item[3] < 255, false);
 
     $dataUri = THEncoder::rgbaToDataURL($image['w'], $image['h'], $image['rgba']);
 
@@ -110,7 +126,7 @@ class ThumbHash
    */
   public static function clearCache(Asset|File $file)
   {
-    $cache = kirby()->cache('tobimori.thumbhash.encode');
+    $cache = App::instance()->cache('tobimori.thumbhash.encode');
     $id = self::getId($file);
     $cache->remove($id);
   }
@@ -136,7 +152,7 @@ class ThumbHash
       $data
     );
 
-    return 'data:image/svg+xml;charset=utf-8,' . $data;
+    return "data:image/svg+xml;charset=utf-8,{$data}";
   }
 
   /**
@@ -150,7 +166,6 @@ class ThumbHash
     $svgWidth = number_format($image['width'], 2, '.', '');
 
     // Wrap the blurred image in a SVG to avoid rasterizing the filter
-
     $alphaFilter = '';
 
     // If the image doesn't include an alpha channel itself, apply an additional filter
@@ -182,7 +197,7 @@ class ThumbHash
   public static function uri(array $image, array $options = []): string
   {
     $uri = $image['uri'];
-    $options['blurRadius'] ??= kirby()->option('tobimori.thumbhash.blurRadius') ?? 1;
+    $options['blurRadius'] ??= App::instance()->option('tobimori.thumbhash.blurRadius') ?? 1;
 
     if ($options['blurRadius'] !== 0) {
       $svg = self::svgFilter($image, $options);
@@ -202,6 +217,6 @@ class ThumbHash
       return $file->mediaHash();
     }
 
-		return $file->uuid()?->id() ?? $file->id();
+    return $file->uuid()?->id() ?? $file->id();
   }
 }
