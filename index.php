@@ -8,23 +8,31 @@ use tobimori\ThumbHash;
 App::plugin('tobimori/thumbhash', [
   'fileMethods' => [
     /** @kql-allowed */
-    'thumbhash' => fn (array $options = []) => ThumbHash::encode($this, $options),
+    'thumbhash' => fn (float|array|null $ratio = null, array $options = []) => ThumbHash::encode($this, $ratio, $options),
     /** @kql-allowed */
-    'th' => fn (array $options = []) => $this->thumbhash($options),
+    'th' => fn (float|array|null $ratio = null, array $options = []) => $this->thumbhash($ratio, $options),
     /** @kql-allowed */
-    'thumbhashUri' => fn (array $options = []) => ThumbHash::thumb($this, $options),
+    'thumbhashUri' => fn (float|array|null $ratio = null, float|null $blurRadius = null, array $options = []) => ThumbHash::thumb($this, $ratio, $blurRadius, $options),
     /** @kql-allowed */
-    'thUri' => fn (array $options = []) => $this->thumbhashUri($options),
+    'thUri' => fn (float|array|null $ratio = null, float|null $blurRadius = null, array $options = []) => $this->thumbhashUri($ratio, $blurRadius, $options),
+    /** @kql-allowed */
+    'averageColor' => fn (string $format = 'hex', float|null $ratio = null) => ThumbHash::averageColor($this, $format, $ratio),
+    /** @kql-allowed */
+    'averageColorRgba' => fn (float|null $ratio = null) => ThumbHash::averageColorRgba($this, $ratio),
   ],
   'assetMethods' => [
     /** @kql-allowed */
-    'thumbhash' => fn (array $options = []) => ThumbHash::encode($this, $options),
+    'thumbhash' => fn (float|array|null $ratio = null, array $options = []) => ThumbHash::encode($this, $ratio, $options),
     /** @kql-allowed */
-    'th' => fn (array $options = []) => $this->thumbhash($options),
+    'th' => fn (float|array|null $ratio = null, array $options = []) => $this->thumbhash($ratio, $options),
     /** @kql-allowed */
-    'thumbhashUri' => fn (array $options = []) => ThumbHash::thumb($this, $options),
+    'thumbhashUri' => fn (float|array|null $ratio = null, float|null $blurRadius = null, array $options = []) => ThumbHash::thumb($this, $ratio, $blurRadius, $options),
     /** @kql-allowed */
-    'thUri' => fn (array $options = []) => $this->thumbhashUri($options),
+    'thUri' => fn (float|array|null $ratio = null, float|null $blurRadius = null, array $options = []) => $this->thumbhashUri($ratio, $blurRadius, $options),
+    /** @kql-allowed */
+    'averageColor' => fn (string $format = 'hex', float|null $ratio = null) => ThumbHash::averageColor($this, $format, $ratio),
+    /** @kql-allowed */
+    'averageColorRgba' => fn (float|null $ratio = null) => ThumbHash::averageColorRgba($this, $ratio),
   ],
   'options' => [
     'cache.encode' => true,
