@@ -12,5 +12,8 @@ return array(
     'Kirby\\ComposerInstaller\\Plugin' => $vendorDir . '/getkirby/composer-installer/src/ComposerInstaller/Plugin.php',
     'Kirby\\ComposerInstaller\\PluginInstaller' => $vendorDir . '/getkirby/composer-installer/src/ComposerInstaller/PluginInstaller.php',
     'Thumbhash\\Thumbhash' => $vendorDir . '/srwiez/thumbhash/src/Thumbhash.php',
+    'tobimori\\Driver\\GdDriver' => $baseDir . '/classes/Driver/GdDriver.php',
+    'tobimori\\Driver\\ImageDriver' => $baseDir . '/classes/Driver/ImageDriver.php',
+    'tobimori\\Driver\\ImagickDriver' => $baseDir . '/classes/Driver/ImagickDriver.php',
     'tobimori\\ThumbHash' => $baseDir . '/classes/ThumbHash.php',
 );

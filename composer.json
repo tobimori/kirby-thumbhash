@@ -19,7 +19,11 @@
   "require": {
     "php": ">=8.3.0",
     "getkirby/composer-installer": "^1.2",
-    "srwiez/thumbhash": "^1.1"
+    "srwiez/thumbhash": "^1.1",
+    "ext-gd": "*"
+  },
+  "suggest": {
+    "ext-imagick": "For better performance and quality with Imagick driver"
   },
   "require-dev": {
     "getkirby/cms": "^5.0"

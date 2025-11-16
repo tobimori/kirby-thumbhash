@@ -7,6 +7,8 @@ use Kirby\Cms\File;
 use Kirby\Exception\Exception;
 use Kirby\Filesystem\Asset;
 use Thumbhash\Thumbhash as THEncoder;
+use tobimori\Driver\GdDriver;
+use tobimori\Driver\ImagickDriver;
 
 use function is_array;
 use function is_string;
@@ -103,22 +105,27 @@ class ThumbHash
       return null;
     }
 
-    // create a gd image from the file.
-    $image = imagecreatefromstring($thumb->read());
-    $height = imagesy($image);
-    $width = imagesx($image);
-    $pixels = [];
+    // extract pixels using the configured driver
+    $engine = $kirby->option('tobimori.thumbhash.engine') ?? 'gd';
+    $content = $thumb->read();
 
-    for ($y = 0; $y < $height; $y++) {
-      for ($x = 0; $x < $width; $x++) {
-        $color_index = imagecolorat($image, $x, $y);
-        $color = imagecolorsforindex($image, $color_index);
-        $alpha = 255 - ceil($color['alpha'] * 255 / 127); // GD only supports 7-bit alpha channel
-        $pixels[] = $color['red'];
-        $pixels[] = $color['green'];
-        $pixels[] = $color['blue'];
-        $pixels[] = $alpha;
+    try {
+      [$width, $height, $pixels] = match ($engine) {
+        'imagick' => ImagickDriver::isAvailable()
+          ? ImagickDriver::extractPixels($content)
+          : throw new Exception("Imagick extension is not available"),
+        'gd' => GdDriver::isAvailable()
+          ? GdDriver::extractPixels($content)
+          : throw new Exception("GD extension is not available"),
+        default => GdDriver::isAvailable()
+          ? GdDriver::extractPixels($content)
+          : throw new Exception("GD extension is not available"),
+      };
+    } catch (\Exception $e) {
+      if ($kirby->option('debug')) {
+        throw new Exception("[ThumbHash] Failed to extract pixels from {$file->filename()} using {$engine} driver: {$e->getMessage()}");
       }
+      return null;
     }
 
     $hashArray = THEncoder::RGBAToHash($width, $height, $pixels);

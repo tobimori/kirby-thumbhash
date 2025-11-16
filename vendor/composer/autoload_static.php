@@ -47,6 +47,9 @@ class ComposerStaticInitdffd8c9e0a563d9c7e328275c53882db
         'Kirby\\ComposerInstaller\\Plugin' => __DIR__ . '/..' . '/getkirby/composer-installer/src/ComposerInstaller/Plugin.php',
         'Kirby\\ComposerInstaller\\PluginInstaller' => __DIR__ . '/..' . '/getkirby/composer-installer/src/ComposerInstaller/PluginInstaller.php',
         'Thumbhash\\Thumbhash' => __DIR__ . '/..' . '/srwiez/thumbhash/src/Thumbhash.php',
+        'tobimori\\Driver\\GdDriver' => __DIR__ . '/../..' . '/classes/Driver/GdDriver.php',
+        'tobimori\\Driver\\ImageDriver' => __DIR__ . '/../..' . '/classes/Driver/ImageDriver.php',
+        'tobimori\\Driver\\ImagickDriver' => __DIR__ . '/../..' . '/classes/Driver/ImagickDriver.php',
         'tobimori\\ThumbHash' => __DIR__ . '/../..' . '/classes/ThumbHash.php',
     );
 
