@@ -72,10 +72,17 @@ class ThumbHash
 
     $ratio ??= $file->ratio();
     $id = self::getId($file);
+    $ratioKey = (string) $ratio;
     $cache = $kirby->cache('tobimori.thumbhash.encode');
+    $cacheData = $cache->get($id);
 
-    if (($cacheData = $cache->get($id)) !== null) {
-      return $cacheData;
+    if (is_array($cacheData) && isset($cacheData[$ratioKey])) {
+      return $cacheData[$ratioKey];
+    }
+
+    // backwards compat: migrate old string cache entries
+    if (is_string($cacheData)) {
+      $cacheData = [$file->ratio() => $cacheData];
     }
 
     // generate a sample image for encode to avoid memory issues.
@@ -130,7 +137,10 @@ class ThumbHash
 
     $hashArray = THEncoder::RGBAToHash($width, $height, $pixels);
     $thumbhash = THEncoder::convertHashToString($hashArray);
-    $cache->set($id, $thumbhash);
+
+    $cacheData = is_array($cacheData) ? $cacheData : [];
+    $cacheData[$ratioKey] = $thumbhash;
+    $cache->set($id, $cacheData);
 
     return $thumbhash;
   }
