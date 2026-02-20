@@ -82,7 +82,7 @@ class ThumbHash
 
     // backwards compat: migrate old string cache entries
     if (is_string($cacheData)) {
-      $cacheData = [$file->ratio() => $cacheData];
+      $cacheData = [(string) $file->ratio() => $cacheData];
     }
 
     // generate a sample image for encode to avoid memory issues.
