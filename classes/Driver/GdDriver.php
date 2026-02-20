@@ -34,8 +34,6 @@ class GdDriver implements ImageDriver
       }
     }
 
-    imagedestroy($image);
-
     return [$width, $height, $pixels];
   }
 
