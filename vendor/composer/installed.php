@@ -1,8 +1,8 @@
 <?php return array(
     'root' => array(
         'name' => 'tobimori/kirby-thumbhash',
-        'pretty_version' => '2.0.0',
-        'version' => '2.0.0.0',
+        'pretty_version' => '2.0.1',
+        'version' => '2.0.1.0',
         'reference' => null,
         'type' => 'kirby-plugin',
         'install_path' => __DIR__ . '/../../',
@@ -20,17 +20,17 @@
             'dev_requirement' => false,
         ),
         'srwiez/thumbhash' => array(
-            'pretty_version' => 'v1.4.0',
-            'version' => '1.4.0.0',
-            'reference' => 'c84f0b3768bca785636b95999c25f86f46e5b5c6',
+            'pretty_version' => 'v1.5.0',
+            'version' => '1.5.0.0',
+            'reference' => '56f4ed1ca361ba39b243b33e5f47867a833b4973',
             'type' => 'library',
             'install_path' => __DIR__ . '/../srwiez/thumbhash',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
         'tobimori/kirby-thumbhash' => array(
-            'pretty_version' => '2.0.0',
-            'version' => '2.0.0.0',
+            'pretty_version' => '2.0.1',
+            'version' => '2.0.1.0',
             'reference' => null,
             'type' => 'kirby-plugin',
             'install_path' => __DIR__ . '/../../',

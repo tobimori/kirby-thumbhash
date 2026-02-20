@@ -11,30 +11,30 @@ class ComposerStaticInitdffd8c9e0a563d9c7e328275c53882db
     );
 
     public static $prefixLengthsPsr4 = array (
-        't' => 
+        't' =>
         array (
             'tobimori\\' => 9,
         ),
-        'T' => 
+        'T' =>
         array (
             'Thumbhash\\' => 10,
         ),
-        'K' => 
+        'K' =>
         array (
             'Kirby\\' => 6,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'tobimori\\' => 
+        'tobimori\\' =>
         array (
             0 => __DIR__ . '/../..' . '/classes',
         ),
-        'Thumbhash\\' => 
+        'Thumbhash\\' =>
         array (
             0 => __DIR__ . '/..' . '/srwiez/thumbhash/src',
         ),
-        'Kirby\\' => 
+        'Kirby\\' =>
         array (
             0 => __DIR__ . '/..' . '/getkirby/composer-installer/src',
         ),
