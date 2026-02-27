@@ -19,6 +19,8 @@ App::plugin('tobimori/thumbhash', [
     'averageColor' => fn (string $format = 'hex', float|null $ratio = null) => ThumbHash::averageColor($this, $format, $ratio),
     /** @kql-allowed */
     'averageColorRgba' => fn (float|null $ratio = null) => ThumbHash::averageColorRgba($this, $ratio),
+    /** @kql-allowed */
+    'hasTransparency' => fn (float|null $ratio = null) => ThumbHash::decode(ThumbHash::encode($this, $ratio))['transparent'] ?? false,
   ],
   'assetMethods' => [
     /** @kql-allowed */
@@ -33,6 +35,8 @@ App::plugin('tobimori/thumbhash', [
     'averageColor' => fn (string $format = 'hex', float|null $ratio = null) => ThumbHash::averageColor($this, $format, $ratio),
     /** @kql-allowed */
     'averageColorRgba' => fn (float|null $ratio = null) => ThumbHash::averageColorRgba($this, $ratio),
+    /** @kql-allowed */
+    'hasTransparency' => fn (float|null $ratio = null) => ThumbHash::decode(ThumbHash::encode($this, $ratio))['transparent'] ?? false,
   ],
   'options' => [
     'cache.encode' => true,
