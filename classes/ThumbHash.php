@@ -4,6 +4,7 @@ namespace tobimori;
 
 use Kirby\Cms\App;
 use Kirby\Cms\File;
+use Kirby\Cms\FileVersion;
 use Kirby\Exception\Exception;
 use Kirby\Filesystem\Asset;
 use Thumbhash\Thumbhash as THEncoder;
@@ -24,6 +25,10 @@ class ThumbHash
    */
   public static function thumb(Asset|File $file, float|array|null $ratio = null, float|null $blurRadius = null, array $options = []): ?string
   {
+    if ($file->isResizable() === false) {
+      return null;
+    }
+
     // backwards compatibility: if $ratio is array and $blurRadius is null and $options is empty, treat $ratio as options
     if (is_array($ratio) && $blurRadius === null && empty($options)) {
       $options = $ratio;
@@ -57,6 +62,10 @@ class ThumbHash
    */
   public static function encode(Asset|File $file, float|array|null $ratio = null, array $options = []): ?string
   {
+    if ($file->isResizable() === false) {
+      return null;
+    }
+
     $kirby = App::instance();
 
     // backwards compatibility: if $ratio is array and $options is empty, treat $ratio as options
@@ -98,6 +107,14 @@ class ThumbHash
     ];
 
     $thumb = $file->thumb($thumbOptions);
+
+    // thumb() returns the original file for non-resizable types (svg, etc.)
+    // or when the job file can't be created: only proceed with actual thumbnails
+    // https://github.com/tobimori/kirby-thumbhash/issues/10
+    if (!$thumb instanceof FileVersion) {
+      return null;
+    }
+
     $actualWidth = $thumb->width();
     $actualHeight = $thumb->height();
 
