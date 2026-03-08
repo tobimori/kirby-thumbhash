@@ -57,6 +57,12 @@ class ThumbHash
    */
   public static function encode(Asset|File $file, float|array|null $ratio = null, array $options = []): ?string
   {
+    // this function is incompatible with non-raster files
+    $extension = strtolower($file->extension());
+    if (in_array($extension, ['svg', 'pdf', 'eps'])) {
+        return null;
+    }
+
     $kirby = App::instance();
 
     // backwards compatibility: if $ratio is array and $options is empty, treat $ratio as options
