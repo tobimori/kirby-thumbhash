@@ -84,8 +84,9 @@ class ThumbHash
 
 		$ratio = self::toFloat($options['ratio'] ?? null) ?? $ratio ?? $file->ratio();
 		$ratioKey = (string)$ratio;
-		/** @var WeakMap<Asset|File, array<string, string>> $memo */
-		$memo = self::$hashes ??= new WeakMap();
+		$memo = self::$hashes ?? new WeakMap();
+		self::$hashes = $memo;
+		/** @var array<string, string> $hashes */
 		$hashes = $memo[$file] ?? [];
 		if (isset($hashes[$ratioKey])) {
 			return $hashes[$ratioKey];
