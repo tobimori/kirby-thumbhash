@@ -4,6 +4,8 @@
 *.cache
 
 node_modules
+/.repos/
+/.playground/
 
 # files of Composer dependencies that are not needed for the plugin
 /vendor/**/.*

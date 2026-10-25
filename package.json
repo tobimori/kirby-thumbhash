@@ -1,0 +1,12 @@
+{
+  "name": "kirby-thumbhash",
+  "private": true,
+  "scripts": {
+    "playground": "PHP_CLI_SERVER_WORKERS=4 php -S ${HOST:-127.0.0.1}:${PORT:-8000} -t .playground .playground/kirby/router.php",
+    "playground:portless": "portless run --name thumbhash pnpm playground"
+  },
+  "devDependencies": {
+    "portless": "^0.15.8"
+  },
+  "packageManager": "pnpm@12.11.2"
+}
