@@ -44,7 +44,10 @@ class GdDriver implements ImageDriver
 			return [$width, $height, $pixels];
 		}
 
-		$reds = $greens = $blues = $paletteAlphas = [];
+		$reds = [];
+		$greens = [];
+		$blues = [];
+		$paletteAlphas = [];
 		for ($index = 0, $total = imagecolorstotal($image); $index < $total; $index++) {
 			/** @var array{red: int, green: int, blue: int, alpha: int} $color */
 			$color = imagecolorsforindex($image, $index);
