@@ -4,6 +4,16 @@ namespace tobimori\Driver;
 
 use Exception;
 
+use function ceil;
+use function extension_loaded;
+use function imagecolorat;
+use function imagecolorsforindex;
+use function imagecolorstotal;
+use function imagecreatefromstring;
+use function imageistruecolor;
+use function imagesx;
+use function imagesy;
+
 class GdDriver implements ImageDriver
 {
 	/**
