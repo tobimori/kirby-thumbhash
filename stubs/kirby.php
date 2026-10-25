@@ -6,6 +6,7 @@ namespace Kirby\Cms {
 	/**
 	 * @method bool isResizable()
 	 * @method float ratio()
+	 * @method \Kirby\Image\Exif exif()
 	 */
 	class File extends ModelWithContent
 	{
@@ -34,6 +35,7 @@ namespace Kirby\Filesystem {
 	 * @method bool isResizable()
 	 * @method float ratio()
 	 * @method string filename()
+	 * @method \Kirby\Image\Exif exif()
 	 */
 	class Asset
 	{

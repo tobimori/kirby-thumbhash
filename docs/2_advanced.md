@@ -92,7 +92,7 @@ This might be helpful when you use third party plugins to edit your images, and 
 | `cache.decode`  | `true`  | Enable decoding cache                                                                             |
 | `cache.encode`  | `true`  | Enable encoding cache                                                                             |
 | `engine`        | `'gd'`  | Image processing driver: `'gd'` or `'imagick'` (Imagick offers better performance and quality)    |
-| `sampleMaxSize` | `100`   | Max width or height for sample image that gets encoded (affects memory usage and quality)         |
+| `sampleMaxSize` | `32`    | Max width or height of the sample image that gets encoded, at most `100`                          |
 | `blurRadius`    | `1`     | Default radius of the SVG blur filter applied to decoded image, set to 0 for raw base64 PNG      |
 
 Options allow you to fine tune the behaviour of the plugin. You can set them in your `config.php` file:
@@ -101,7 +101,7 @@ Options allow you to fine tune the behaviour of the plugin. You can set them in 
 return [
     'tobimori.thumbhash' => [
         'engine' => 'imagick', // use Imagick for better performance (requires ext-imagick)
-        'sampleMaxSize' => 100,
+        'sampleMaxSize' => 32,
         'blurRadius' => 1,
     ],
 ];
@@ -112,7 +112,9 @@ return [
 The plugin supports two image processing drivers:
 
 - **GD** (default): Uses PHP's built-in GD extension. Always available, good performance.
-- **Imagick**: Uses the Imagick extension. Offers better performance and quality, especially for larger images.
+- **Imagick**: Uses the Imagick extension. Offers better performance, especially for larger images: it reads JPEG files at a reduced size.
+
+The driver scales the original image down in memory to a sample, cropped around the focus point and turned upright by its EXIF orientation, like Kirby's thumbs. The plugin doesn't write sample thumbs to the `media` folder. If the driver can't read an image, or GD doesn't have enough memory for it, the plugin samples it with a Kirby thumb instead.
 
 To use Imagick, install the PHP extension and set the engine option:
 
@@ -130,4 +132,4 @@ return [
 
 ### Error Handling
 
-When sample thumb generation fails, the plugin returns `null` silently in production. If you have Kirby's [debug mode](https://getkirby.com/docs/reference/system/options/debug) enabled, it will throw an exception with a detailed error message instead. The failed thumbnail is automatically deleted to allow retry on next request.
+When sampling fails, the plugin returns `null` silently in production. If you have Kirby's [debug mode](https://getkirby.com/docs/reference/system/options/debug) enabled, it will throw an exception with a detailed error message instead. A sample thumb with the wrong size is automatically deleted to allow retry on next request.

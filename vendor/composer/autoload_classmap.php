@@ -15,5 +15,6 @@ return array(
     'tobimori\\Driver\\GdDriver' => $baseDir . '/classes/Driver/GdDriver.php',
     'tobimori\\Driver\\ImageDriver' => $baseDir . '/classes/Driver/ImageDriver.php',
     'tobimori\\Driver\\ImagickDriver' => $baseDir . '/classes/Driver/ImagickDriver.php',
+    'tobimori\\Sampler' => $baseDir . '/classes/Sampler.php',
     'tobimori\\ThumbHash' => $baseDir . '/classes/ThumbHash.php',
 );

@@ -38,6 +38,7 @@ class ComposerStaticInitdffd8c9e0a563d9c7e328275c53882db
         'tobimori\\Driver\\GdDriver' => __DIR__ . '/../..' . '/classes/Driver/GdDriver.php',
         'tobimori\\Driver\\ImageDriver' => __DIR__ . '/../..' . '/classes/Driver/ImageDriver.php',
         'tobimori\\Driver\\ImagickDriver' => __DIR__ . '/../..' . '/classes/Driver/ImagickDriver.php',
+        'tobimori\\Sampler' => __DIR__ . '/../..' . '/classes/Sampler.php',
         'tobimori\\ThumbHash' => __DIR__ . '/../..' . '/classes/ThumbHash.php',
     );
 

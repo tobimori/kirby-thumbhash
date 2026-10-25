@@ -77,16 +77,20 @@ class ThumbHashTest extends TestCase
 		$asset = new Asset("assets/image.{$extension}");
 
 		$hash = ThumbHash::encode($asset);
+
 		$this->assertNotNull($hash);
-
-		// the sample image of the first call is the input of the reference
-		$thumb = (string)F::read(glob("{$root}/media/assets/assets/*/image-*.{$extension}")[0] ?? '');
-		[$w, $h, $pixels] = Reference::gdPixels($thumb);
-		$this->assertSame(Reference::toString(Reference::encode($w, $h, $pixels)), $hash);
+		$this->assertDirectoryDoesNotExist("{$root}/media");
 		$this->assertSame($hash, ThumbHash::encode($asset));
-		$this->assertSame(Reference::decode(Reference::fromString($hash))['transparent'], ThumbHash::hasTransparency($asset));
-
 		ThumbHash::clearCache($asset);
 		$this->assertSame($hash, ThumbHash::encode($asset));
+
+		// the sample keeps the aspect ratio and the average color of the whole image
+		$reference = Reference::fromString(Reference::toString(Reference::encode(...Reference::gdPixels($content))));
+		$this->assertSame(Reference::decode($reference)['width'], ThumbHash::decode($hash)['width']);
+		$this->assertSame(Reference::decode($reference)['height'], ThumbHash::decode($hash)['height']);
+		$average = Reference::averageRgba(Reference::fromString($hash));
+		foreach (Reference::averageRgba($reference) as $channel => $value) {
+			$this->assertEqualsWithDelta($value, $average[$channel], 0.05, $channel);
+		}
 	}
 }

@@ -46,7 +46,7 @@ App::plugin('tobimori/thumbhash', [
 		'cache.decode' => true,
 		'engine' => 'gd', // Image processing driver: 'gd' or 'imagick'
 		'blurRadius' => 1, // Blur radius, larger values are smoother, but less accurate
-		'sampleMaxSize' => 100 // Max width or height for smaller image that gets encoded (Memory constraints)
+		'sampleMaxSize' => 32 // Max width or height of the sample image that gets encoded
 	],
 	'hooks' => [
 		'file.update:before' => fn (File $file) => ThumbHash::clearCache($file),
