@@ -85,4 +85,48 @@ class ThumbHashTest extends TestCase
 			$this->assertEqualsWithDelta($value, $average[$channel], $channel === 'a' ? 0.07 : 0.05, $channel);
 		}
 	}
+
+	/**
+	 * @return iterable<string, array{string, int, int, int}>
+	 */
+	public static function sampleSizes(): iterable
+	{
+		foreach (['gd', 'imagick'] as $engine) {
+			yield "{$engine} 101x31 at 100" => [$engine, 101, 31, 100];
+			yield "{$engine} 303x93 at 1000" => [$engine, 303, 93, 1000];
+		}
+	}
+
+	/**
+	 * Samples must not exceed the 100 x 100 pixels that the codec accepts
+	 *
+	 * @see https://github.com/tobimori/kirby-thumbhash/issues/12
+	 */
+	#[DataProvider('sampleSizes')]
+	public function testEncodeAtMaxSampleSize(string $engine, int $width, int $height, int $max): void
+	{
+		if ($engine === 'imagick' && !extension_loaded('imagick')) {
+			$this->markTestSkipped('Imagick is not available');
+		}
+
+		$kirby = App::instance();
+		$root = $kirby->root('index');
+		$image = imagecreatetruecolor($width, $height);
+		ob_start();
+		imagejpeg($image);
+		F::write("{$root}/assets/wide.jpg", (string)ob_get_clean());
+		$kirby->clone(['options' => [
+			'tobimori.thumbhash.engine' => $engine,
+			'tobimori.thumbhash.sampleMaxSize' => $max
+		]]);
+
+		try {
+			$this->assertNotNull(ThumbHash::encode(new Asset('assets/wide.jpg')));
+		} finally {
+			// A new Kirby app sets its own error handlers
+			restore_error_handler();
+			restore_exception_handler();
+			App::instance($kirby);
+		}
+	}
 }

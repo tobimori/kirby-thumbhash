@@ -132,14 +132,13 @@ class ThumbHash
 			}
 
 			[$width, $height, $pixels] = Sampler::sample($file, $driver, $width, $height);
+			$thumbhash = Codec::toString(Codec::encode($width, $height, $pixels));
 		} catch (\Exception $e) {
 			if ($kirby->option('debug')) {
-				throw new Exception("[ThumbHash] Failed to sample {$file->filename()}: {$e->getMessage()}");
+				throw new Exception("[ThumbHash] Failed to encode {$file->filename()}: {$e->getMessage()}");
 			}
 			return null;
 		}
-
-		$thumbhash = Codec::toString(Codec::encode($width, $height, $pixels));
 
 		$cacheData[$ratioKey] = $thumbhash;
 		$cache->set($id, $cacheData);
