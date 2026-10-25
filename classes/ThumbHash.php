@@ -170,16 +170,11 @@ class ThumbHash
 		}
 
 		$image = Codec::decode($thumbhash);
-		// check if any alpha value in RGBA array is less than 255
-		$transparent = min(array_column(array_chunk($image['rgba'], 4), 3)) < 255;
-
-		$dataUri = Codec::pngDataUrl($image['w'], $image['h'], $image['rgba']);
-
 		$data = [
-			'uri' => $dataUri,
+			'uri' => Codec::pngDataUrl($image['w'], $image['h'], $image['rgba']),
 			'width' => $image['w'],
 			'height' => $image['h'],
-			'transparent' => $transparent
+			'transparent' => $image['transparent']
 		];
 
 		$cache->set($id, $data);

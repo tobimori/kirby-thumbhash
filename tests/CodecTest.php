@@ -49,12 +49,12 @@ class CodecTest extends TestCase
 		$expected = Reference::decode($hash);
 		$image = Codec::decode($hash);
 
-		$this->assertSame(self::floats(Reference::rgba($hash)), self::floats($image));
+		$this->assertSame(self::floats(Reference::rgba($hash)), self::floats(['w' => $image['w'], 'h' => $image['h'], 'rgba' => $image['rgba']]));
+		$this->assertSame($expected['transparent'], $image['transparent']);
 
 		$this->assertSame($expected['width'], $image['w']);
 		$this->assertSame($expected['height'], $image['h']);
 		$this->assertSame($expected['uri'], Codec::pngDataUrl($image['w'], $image['h'], $image['rgba']));
-		$this->assertSame($expected['transparent'], min(array_column(array_chunk($image['rgba'], 4), 3)) < 255);
 	}
 
 	/**

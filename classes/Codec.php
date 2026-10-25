@@ -5,13 +5,12 @@ namespace tobimori;
 use Exception;
 
 use function abs;
+use function array_fill;
 use function array_map;
 use function base64_decode;
 use function base64_encode;
 use function cos;
-use function crc32;
 use function hash;
-use function hexdec;
 use function implode;
 use function max;
 use function min;
@@ -363,7 +362,7 @@ class Codec
 	 * Decodes a ThumbHash to an RGBA image. RGB is not premultiplied by A.
 	 *
 	 * @param list<int> $hash
-	 * @return array{w: int, h: int, rgba: list<float>}
+	 * @return array{w: int, h: int, rgba: list<float|int>, transparent: bool}
 	 */
 	public static function decode(array $hash): array
 	{
@@ -390,83 +389,160 @@ class Codec
 			$ac = [];
 			for ($cy = 0; $cy < $ny; $cy++) {
 				for ($cx = $cy ? 0 : 1; ($cx * $ny) < ($nx * ($ny - $cy)); $cx++) {
-					$ac[] = (((($hash[$ac_start + ($ac_index >> 1)] >> (($ac_index++ & 1) << 2)) & 15) / 7.5) - 1) * $scale;
+					$ac[] = [$cx, $cy, (((($hash[$ac_start + ($ac_index >> 1)] >> (($ac_index++ & 1) << 2)) & 15) / 7.5) - 1) * $scale];
 				}
 			}
 
 			return $ac;
 		};
 		$l_ac = $decodeChannel($lx, $ly, $l_scale);
-		$p_ac = $decodeChannel(3, 3, $p_scale * 1.25);
-		$q_ac = $decodeChannel(3, 3, $q_scale * 1.25);
+		[[, , $p0], [, , $p1], [, , $p2], [, , $p3], [, , $p4]] = $decodeChannel(3, 3, $p_scale * 1.25);
+		[[, , $q0], [, , $q1], [, , $q2], [, , $q3], [, , $q4]] = $decodeChannel(3, 3, $q_scale * 1.25);
 		$a_ac = $hasAlpha ? $decodeChannel(5, 5, ($hash[5] >> 4) / 15) : [];
 
 		// Decode using the DCT into RGB
 		$ratio = self::aspectRatio($hash);
 		$w = (int)round($ratio > 1 ? 32 : 32 * $ratio);
 		$h = (int)round($ratio > 1 ? 32 / $ratio : 32);
+
+		// The arithmetic matches the reference implementation operation by operation, so the pixels are the same. The
+		// factors multiplied with the horizontal cosines and the sums of the first row of terms (cos(0) * 2 = 2) only
+		// depend on x. The terms of each further row of the factors get fixed slots, an empty slot adds a 0.
+		$l_x = [];
+		$l_s = [];
+		$a_x = [];
+		$a_s = [];
+		$p_s = [];
+		$q_s = [];
+		$fx1 = [];
+		for ($x = 0; $x < $w; $x++) {
+			$fx = array_map(static fn (int $cx): float => cos((M_PI / $w) * ($x + 0.5) * $cx), range(0, 6));
+
+			$l = $l_dc;
+			$slots = array_fill(0, 21, 0.0);
+			foreach ($l_ac as [$cx, $cy, $ac]) {
+				if ($cy === 0) {
+					$l += $ac * $fx[$cx] * 2.0;
+				} else {
+					$slots[[1 => 0, 6, 11, 15, 18, 20][$cy] + $cx] = $ac * $fx[$cx];
+				}
+			}
+			$l_s[$x] = $l;
+			$l_x[$x] = $slots;
+
+			$a = $a_dc;
+			$slots = array_fill(0, 10, 0.0);
+			foreach ($a_ac as [$cx, $cy, $ac]) {
+				if ($cy === 0) {
+					$a += $ac * $fx[$cx] * 2.0;
+				} else {
+					$slots[[1 => 0, 4, 7, 9][$cy] + $cx] = $ac * $fx[$cx];
+				}
+			}
+			$a_s[$x] = $a;
+			$a_x[$x] = $slots;
+
+			$p_s[$x] = $p_dc + ($p0 * ($fx[1] * 2.0)) + ($p1 * ($fx[2] * 2.0));
+			$q_s[$x] = $q_dc + ($q0 * ($fx[1] * 2.0)) + ($q1 * ($fx[2] * 2.0));
+			$fx1[$x] = $fx[1];
+		}
+
 		$rgba = [];
+		$transparent = false;
+		for ($y = 0; $y < $h; $y++) {
+			$fy1 = cos((M_PI / $h) * ($y + 0.5)) * 2;
+			$fy2 = cos((M_PI / $h) * ($y + 0.5) * 2) * 2;
+			$fy3 = cos((M_PI / $h) * ($y + 0.5) * 3) * 2;
+			$fy4 = cos((M_PI / $h) * ($y + 0.5) * 4) * 2;
+			$fy5 = cos((M_PI / $h) * ($y + 0.5) * 5) * 2;
+			$fy6 = cos((M_PI / $h) * ($y + 0.5) * 6) * 2;
+			for ($x = 0; $x < $w; $x++) {
+				$t = $l_x[$x];
+				$l =
+					$l_s[$x] +
+					($t[0] * $fy1) +
+					($t[1] * $fy1) +
+					($t[2] * $fy1) +
+					($t[3] * $fy1) +
+					($t[4] * $fy1) +
+					($t[5] * $fy1) +
+					($t[6] * $fy2) +
+					($t[7] * $fy2) +
+					($t[8] * $fy2) +
+					($t[9] * $fy2) +
+					($t[10] * $fy2) +
+					($t[11] * $fy3) +
+					($t[12] * $fy3) +
+					($t[13] * $fy3) +
+					($t[14] * $fy3) +
+					($t[15] * $fy4) +
+					($t[16] * $fy4) +
+					($t[17] * $fy4) +
+					($t[18] * $fy5) +
+					($t[19] * $fy5) +
+					($t[20] * $fy6);
 
-		// Precompute the coefficients: they only depend on either x or y
-		$fxs = [];
-		for ($x = 0, $n = max($lx, $hasAlpha ? 5 : 3); $x < $w; $x++) {
-			for ($cx = 0; $cx < $n; $cx++) {
-				$fxs[$x][$cx] = cos((M_PI / $w) * ($x + 0.5) * $cx);
-			}
-		}
-		$fys = [];
-		for ($y = 0, $n = max($ly, $hasAlpha ? 5 : 3); $y < $h; $y++) {
-			for ($cy = 0; $cy < $n; $cy++) {
-				$fys[$y][$cy] = cos((M_PI / $h) * ($y + 0.5) * $cy);
-			}
-		}
-
-		for ($y = 0, $i = 0; $y < $h; $y++) {
-			$fy = $fys[$y];
-			for ($x = 0; $x < $w; $x++, $i += 4) {
-				$fx = $fxs[$x];
-				$l = $l_dc;
-				$p = $p_dc;
-				$q = $q_dc;
-				$a = $a_dc;
-
-				// Decode L
-				for ($cy = 0, $j = 0; $cy < $ly; $cy++) {
-					for ($cx = $cy ? 0 : 1, $fy2 = $fy[$cy] * 2; ($cx * $ly) < ($lx * ($ly - $cy)); $cx++, $j++) {
-						$l += $l_ac[$j] * $fx[$cx] * $fy2;
-					}
-				}
-
-				// Decode P and Q
-				for ($cy = 0, $j = 0; $cy < 3; $cy++) {
-					for ($cx = $cy ? 0 : 1, $fy2 = $fy[$cy] * 2; $cx < (3 - $cy); $cx++, $j++) {
-						$f = $fx[$cx] * $fy2;
-						$p += $p_ac[$j] * $f;
-						$q += $q_ac[$j] * $f;
-					}
-				}
-
-				// Decode A
-				if ($hasAlpha) {
-					for ($cy = 0, $j = 0; $cy < 5; $cy++) {
-						for ($cx = $cy ? 0 : 1, $fy2 = $fy[$cy] * 2; $cx < (5 - $cy); $cx++, $j++) {
-							$a += $a_ac[$j] * $fx[$cx] * $fy2;
-						}
-					}
-				}
+				$f = $fx1[$x] * $fy1;
+				$p = $p_s[$x] + ($p2 * $fy1) + ($p3 * $f) + ($p4 * $fy2);
+				$q = $q_s[$x] + ($q2 * $fy1) + ($q3 * $f) + ($q4 * $fy2);
 
 				// Convert to RGB
 				$b = $l - ((2 / 3) * $p);
 				$r = ((3 * $l) - $b + $q) / 2;
 				$g = $r - $q;
-				$rgba[$i] = max(0, 255 * min(1, $r));
-				$rgba[$i + 1] = max(0, 255 * min(1, $g));
-				$rgba[$i + 2] = max(0, 255 * min(1, $b));
-				$rgba[$i + 3] = max(0, 255 * min(1, $a));
+				if ($r >= 1) {
+					$rgba[] = 255;
+				} elseif ($r > 0) {
+					$rgba[] = 255 * $r;
+				} else {
+					$rgba[] = 0;
+				}
+				if ($g >= 1) {
+					$rgba[] = 255;
+				} elseif ($g > 0) {
+					$rgba[] = 255 * $g;
+				} else {
+					$rgba[] = 0;
+				}
+				if ($b >= 1) {
+					$rgba[] = 255;
+				} elseif ($b > 0) {
+					$rgba[] = 255 * $b;
+				} else {
+					$rgba[] = 0;
+				}
+
+				if ($hasAlpha) {
+					$t = $a_x[$x];
+					$a =
+						$a_s[$x] +
+						($t[0] * $fy1) +
+						($t[1] * $fy1) +
+						($t[2] * $fy1) +
+						($t[3] * $fy1) +
+						($t[4] * $fy2) +
+						($t[5] * $fy2) +
+						($t[6] * $fy2) +
+						($t[7] * $fy3) +
+						($t[8] * $fy3) +
+						($t[9] * $fy4);
+					if ($a >= 1) {
+						$rgba[] = 255;
+					} elseif ($a > 0) {
+						$a *= 255;
+						$rgba[] = $a;
+						$transparent = $transparent || $a < 255;
+					} else {
+						$rgba[] = 0;
+						$transparent = true;
+					}
+				} else {
+					$rgba[] = 255;
+				}
 			}
 		}
 
-		return ['w' => $w, 'h' => $h, 'rgba' => $rgba];
+		return ['w' => $w, 'h' => $h, 'rgba' => $rgba, 'transparent' => $transparent];
 	}
 
 	/**
@@ -519,22 +595,17 @@ class Codec
 	 */
 	public static function pngDataUrl(int $w, int $h, array $rgba): string
 	{
+		// One uncompressed ("stored") deflate block per scanline, the last block is marked as final
 		$row = ($w * 4) + 1;
-		$raw = '';
-		$deflate = "\x78\x01"; // zlib header
-
-		// One uncompressed ("stored") deflate block per scanline
-		for ($y = 0; $y < $h; $y++) {
-			$line = "\0" . pack('C*', ...array_map(intval(...), array_slice($rgba, $y * $w * 4, $w * 4)));
-			$deflate .= pack('Cvv', ($y + 1) < $h ? 0 : 1, $row, ~$row & 0xFFFF) . $line;
-			$raw .= $line;
-		}
-		$deflate .= pack('N', hexdec(hash('adler32', $raw)));
+		$lines = str_split(pack('C*', ...$rgba), max(1, $w * 4));
+		$header = pack('Cvv', 0, $row, ~$row & 0xFFFF) . "\0";
+		$blocks = $header . implode($header, $lines);
+		$blocks[strlen($blocks) - $row - 5] = "\1";
 
 		$png =
 			"\x89PNG\r\n\x1a\n" .
 			self::pngChunk('IHDR', pack('NNC5', $w, $h, 8, 6, 0, 0, 0)) .
-			self::pngChunk('IDAT', $deflate) .
+			self::pngChunk('IDAT', "\x78\x01" . $blocks . hash('adler32', "\0" . implode("\0", $lines), true)) .
 			self::pngChunk('IEND', '');
 
 		return 'data:image/png;base64,' . base64_encode($png);
@@ -542,7 +613,7 @@ class Codec
 
 	private static function pngChunk(string $type, string $data): string
 	{
-		return pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
+		return pack('N', strlen($data)) . $type . $data . hash('crc32b', $type . $data, true);
 	}
 
 	/**

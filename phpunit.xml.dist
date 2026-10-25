@@ -4,6 +4,9 @@
          bootstrap="tests/bootstrap.php"
          colors="true"
          cacheDirectory=".repos/phpunit-cache">
+  <php>
+    <ini name="memory_limit" value="-1"/>
+  </php>
   <testsuites>
     <testsuite name="default">
       <directory>tests</directory>
