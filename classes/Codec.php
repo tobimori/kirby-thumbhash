@@ -231,8 +231,8 @@ class Codec
 			$transparent_p = (($r + $g) / 2) - $b;
 			$transparent_q = $r - $g;
 
-			// Convert the image from RGBA to LPQA (composite atop the average color). The alpha of a pixel isn't 255, so
-			// the luminance has 5 horizontal frequencies at most, and the alpha terms of transparent pixels are 0.
+			// Convert the image from RGBA to LPQA (composite atop the average color). The image has alpha, so the
+			// luminance has 5 horizontal frequencies at most, and the alpha terms of transparent pixels are 0.
 			for ($y = 0, $j = 0; $y < $h; $y++) {
 				$sl0 = 0.0;
 				$sl1 = 0.0;
