@@ -189,6 +189,10 @@ class Images
 		$files = [];
 		$variants = [
 			'png16' => static fn (Imagick $image) => $image->setImageDepth(16),
+			'png16 blurred' => static function (Imagick $image) {
+				$image->setImageDepth(16);
+				$image->blurImage(2, 0.7);
+			},
 			'gray png' => static fn (Imagick $image) => $image->transformImageColorspace(Imagick::COLORSPACE_GRAY),
 			'cmyk jpeg' => static function (Imagick $image) {
 				$image->transformImageColorspace(Imagick::COLORSPACE_CMYK);

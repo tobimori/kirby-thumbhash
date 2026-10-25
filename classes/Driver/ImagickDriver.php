@@ -19,17 +19,8 @@ class ImagickDriver implements ImageDriver
 		$width = $image->getImageWidth();
 		$height = $image->getImageHeight();
 
-		$pixels = [];
-		for ($y = 0; $y < $height; $y++) {
-			for ($x = 0; $x < $width; $x++) {
-				$pixel = $image->getImagePixelColor($x, $y);
-				$colors = $pixel->getColor(2);
-				$pixels[] = (int)$colors['r'];
-				$pixels[] = (int)$colors['g'];
-				$pixels[] = (int)$colors['b'];
-				$pixels[] = (int)$colors['a'];
-			}
-		}
+		/** @var list<int> $pixels */
+		$pixels = $image->exportImagePixels(0, 0, $width, $height, 'RGBA', Imagick::PIXEL_CHAR);
 
 		$image->clear();
 		$image->destroy();
