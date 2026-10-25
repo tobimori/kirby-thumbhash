@@ -4,6 +4,24 @@ namespace tobimori;
 
 use Exception;
 
+use function abs;
+use function array_map;
+use function base64_decode;
+use function base64_encode;
+use function cos;
+use function crc32;
+use function hash;
+use function hexdec;
+use function implode;
+use function max;
+use function min;
+use function pack;
+use function range;
+use function round;
+use function rtrim;
+use function str_split;
+use function strlen;
+
 /**
  * ThumbHash encoder and decoder
  *
@@ -71,95 +89,259 @@ class Codec
 			throw new Exception("{$w}x{$h} doesn't fit in 100x100");
 		}
 
-		// Determine the average color
-		$avg_r = 0;
-		$avg_g = 0;
-		$avg_b = 0;
-		$avg_a = 0;
+		// The arithmetic matches the reference implementation operation by operation, so the hashes are the same.
+		// Lookup tables hold the results of the per pixel divisions, and multiplications by cos(0) = 1 are left out.
+		$alphas = array_map(static fn (int $alpha): float => $alpha / 255, range(0, 255));
+		$weights = array_map(static fn (float $alpha): float => $alpha / 255, $alphas);
 
-		for ($i = 0, $j = 0; $i < ($w * $h); $i++, $j += 4) {
-			$alpha = $rgba[$j + 3] / 255;
-			$avg_r += ($alpha / 255) * $rgba[$j];
-			$avg_g += ($alpha / 255) * $rgba[$j + 1];
-			$avg_b += ($alpha / 255) * $rgba[$j + 2];
-			$avg_a += $alpha;
-		}
-		if ($avg_a) {
-			$avg_r /= $avg_a;
-			$avg_g /= $avg_a;
-			$avg_b /= $avg_a;
+		$n = $w * $h;
+		$end = $n * 4;
+		$opaque = true;
+		for ($j = 3; $j < $end; $j += 4) {
+			if ($rgba[$j] !== 255) {
+				$opaque = false;
+				break;
+			}
 		}
 
-		$hasAlpha = $avg_a < ($w * $h);
+		$fx1 = [];
+		$fx2 = [];
+		$fx3 = [];
+		$fx4 = [];
+		$fx5 = [];
+		$fx6 = [];
+		for ($x = 0; $x < $w; $x++) {
+			$fx1[$x] = cos((M_PI / $w) * ($x + 0.5));
+			$fx2[$x] = cos((M_PI / $w) * 2 * ($x + 0.5));
+			$fx3[$x] = cos((M_PI / $w) * 3 * ($x + 0.5));
+			$fx4[$x] = cos((M_PI / $w) * 4 * ($x + 0.5));
+			$fx5[$x] = cos((M_PI / $w) * 5 * ($x + 0.5));
+			$fx6[$x] = cos((M_PI / $w) * 6 * ($x + 0.5));
+		}
+
+		// Sums of the rows multiplied with the horizontal cosines, per channel and horizontal frequency
+		$l0 = [];
+		$l1 = [];
+		$l2 = [];
+		$l3 = [];
+		$l4 = [];
+		$l5 = [];
+		$l6 = [];
+		$p0 = [];
+		$p1 = [];
+		$p2 = [];
+		$q0 = [];
+		$q1 = [];
+		$q2 = [];
+		$a0 = [];
+		$a1 = [];
+		$a2 = [];
+		$a3 = [];
+		$a4 = [];
+
+		if ($opaque) {
+			// A composite atop the average color with an alpha of 1 doesn't depend on the average color
+			$hasAlpha = false;
+			$weight = $weights[255];
+			for ($y = 0, $j = 0; $y < $h; $y++) {
+				$sl0 = 0.0;
+				$sl1 = 0.0;
+				$sl2 = 0.0;
+				$sl3 = 0.0;
+				$sl4 = 0.0;
+				$sl5 = 0.0;
+				$sl6 = 0.0;
+				$sp0 = 0.0;
+				$sp1 = 0.0;
+				$sp2 = 0.0;
+				$sq0 = 0.0;
+				$sq1 = 0.0;
+				$sq2 = 0.0;
+				for ($x = 0; $x < $w; $x++, $j += 4) {
+					$r = $weight * $rgba[$j];
+					$g = $weight * $rgba[$j + 1];
+					$b = $weight * $rgba[$j + 2];
+					$l = ($r + $g + $b) / 3;
+					$p = (($r + $g) / 2) - $b;
+					$q = $r - $g;
+					$f1 = $fx1[$x];
+					$f2 = $fx2[$x];
+					$sl0 += $l;
+					$sl1 += $l * $f1;
+					$sl2 += $l * $f2;
+					$sl3 += $l * $fx3[$x];
+					$sl4 += $l * $fx4[$x];
+					$sl5 += $l * $fx5[$x];
+					$sl6 += $l * $fx6[$x];
+					$sp0 += $p;
+					$sp1 += $p * $f1;
+					$sp2 += $p * $f2;
+					$sq0 += $q;
+					$sq1 += $q * $f1;
+					$sq2 += $q * $f2;
+				}
+				$l0[$y] = $sl0;
+				$l1[$y] = $sl1;
+				$l2[$y] = $sl2;
+				$l3[$y] = $sl3;
+				$l4[$y] = $sl4;
+				$l5[$y] = $sl5;
+				$l6[$y] = $sl6;
+				$p0[$y] = $sp0;
+				$p1[$y] = $sp1;
+				$p2[$y] = $sp2;
+				$q0[$y] = $sq0;
+				$q1[$y] = $sq1;
+				$q2[$y] = $sq2;
+			}
+		} else {
+			// Determine the average color
+			$avg_r = 0.0;
+			$avg_g = 0.0;
+			$avg_b = 0.0;
+			$avg_a = 0.0;
+			for ($j = 0; $j < $end; $j += 4) {
+				$alpha = $rgba[$j + 3];
+				$weight = $weights[$alpha];
+				$avg_r += $weight * $rgba[$j];
+				$avg_g += $weight * $rgba[$j + 1];
+				$avg_b += $weight * $rgba[$j + 2];
+				$avg_a += $alphas[$alpha];
+			}
+			if ($avg_a) {
+				$avg_r /= $avg_a;
+				$avg_g /= $avg_a;
+				$avg_b /= $avg_a;
+			}
+			$hasAlpha = $avg_a < $n;
+
+			// Shares of the average color per alpha value
+			$base_r = [];
+			$base_g = [];
+			$base_b = [];
+			for ($i = 0; $i < 256; $i++) {
+				$base_r[$i] = $avg_r * (1 - $alphas[$i]);
+				$base_g[$i] = $avg_g * (1 - $alphas[$i]);
+				$base_b[$i] = $avg_b * (1 - $alphas[$i]);
+			}
+
+			// Convert the image from RGBA to LPQA (composite atop the average color)
+			for ($y = 0, $j = 0; $y < $h; $y++) {
+				$sl0 = 0.0;
+				$sl1 = 0.0;
+				$sl2 = 0.0;
+				$sl3 = 0.0;
+				$sl4 = 0.0;
+				$sl5 = 0.0;
+				$sl6 = 0.0;
+				$sp0 = 0.0;
+				$sp1 = 0.0;
+				$sp2 = 0.0;
+				$sq0 = 0.0;
+				$sq1 = 0.0;
+				$sq2 = 0.0;
+				$sa0 = 0.0;
+				$sa1 = 0.0;
+				$sa2 = 0.0;
+				$sa3 = 0.0;
+				$sa4 = 0.0;
+				for ($x = 0; $x < $w; $x++, $j += 4) {
+					$alpha = $rgba[$j + 3];
+					$weight = $weights[$alpha];
+					$r = $base_r[$alpha] + ($weight * $rgba[$j]);
+					$g = $base_g[$alpha] + ($weight * $rgba[$j + 1]);
+					$b = $base_b[$alpha] + ($weight * $rgba[$j + 2]);
+					$l = ($r + $g + $b) / 3;
+					$p = (($r + $g) / 2) - $b;
+					$q = $r - $g;
+					$a = $alphas[$alpha];
+					$f1 = $fx1[$x];
+					$f2 = $fx2[$x];
+					$f3 = $fx3[$x];
+					$f4 = $fx4[$x];
+					$sl0 += $l;
+					$sl1 += $l * $f1;
+					$sl2 += $l * $f2;
+					$sl3 += $l * $f3;
+					$sl4 += $l * $f4;
+					$sl5 += $l * $fx5[$x];
+					$sl6 += $l * $fx6[$x];
+					$sp0 += $p;
+					$sp1 += $p * $f1;
+					$sp2 += $p * $f2;
+					$sq0 += $q;
+					$sq1 += $q * $f1;
+					$sq2 += $q * $f2;
+					$sa0 += $a;
+					$sa1 += $a * $f1;
+					$sa2 += $a * $f2;
+					$sa3 += $a * $f3;
+					$sa4 += $a * $f4;
+				}
+				$l0[$y] = $sl0;
+				$l1[$y] = $sl1;
+				$l2[$y] = $sl2;
+				$l3[$y] = $sl3;
+				$l4[$y] = $sl4;
+				$l5[$y] = $sl5;
+				$l6[$y] = $sl6;
+				$p0[$y] = $sp0;
+				$p1[$y] = $sp1;
+				$p2[$y] = $sp2;
+				$q0[$y] = $sq0;
+				$q1[$y] = $sq1;
+				$q2[$y] = $sq2;
+				$a0[$y] = $sa0;
+				$a1[$y] = $sa1;
+				$a2[$y] = $sa2;
+				$a3[$y] = $sa3;
+				$a4[$y] = $sa4;
+			}
+		}
+
 		$l_limit = $hasAlpha ? 5 : 7; // Use fewer luminance bits if there's alpha
 		$lx = (int)max(1, round(($l_limit * $w) / max($w, $h)));
 		$ly = (int)max(1, round(($l_limit * $h) / max($w, $h)));
-		$l = []; // luminance
-		$p = []; // yellow - blue
-		$q = []; // red - green
-		$a = []; // alpha
 
-		// Convert the image from RGBA to LPQA (composite atop the average color)
-		for ($i = 0, $j = 0; $i < ($w * $h); $i++, $j += 4) {
-			$alpha = $rgba[$j + 3] / 255;
-			$r = ($avg_r * (1 - $alpha)) + (($alpha / 255) * $rgba[$j]);
-			$g = ($avg_g * (1 - $alpha)) + (($alpha / 255) * $rgba[$j + 1]);
-			$b = ($avg_b * (1 - $alpha)) + (($alpha / 255) * $rgba[$j + 2]);
-			$l[$i] = ($r + $g + $b) / 3;
-			$p[$i] = (($r + $g) / 2) - $b;
-			$q[$i] = $r - $g;
-			$a[$i] = $alpha;
+		$fys = [];
+		for ($cy = 0, $ny = max(3, $ly, $hasAlpha ? 5 : 3); $cy < $ny; $cy++) {
+			for ($y = 0; $y < $h; $y++) {
+				$fys[$cy][$y] = cos((M_PI / $h) * $cy * ($y + 0.5));
+			}
 		}
 
 		// Encode using the DCT into DC (constant) and normalized AC (varying) terms
 		return [
 			'lx' => $lx,
 			'ly' => $ly,
-			'l' => self::encodeChannel($l, max(3, $lx), max(3, $ly), $w, $h),
-			'p' => self::encodeChannel($p, 3, 3, $w, $h),
-			'q' => self::encodeChannel($q, 3, 3, $w, $h),
-			'a' => $hasAlpha ? self::encodeChannel($a, 5, 5, $w, $h) : null
+			'l' => self::encodeChannel([$l0, $l1, $l2, $l3, $l4, $l5, $l6], max(3, $lx), max(3, $ly), $fys, $n),
+			'p' => self::encodeChannel([$p0, $p1, $p2], 3, 3, $fys, $n),
+			'q' => self::encodeChannel([$q0, $q1, $q2], 3, 3, $fys, $n),
+			'a' => $hasAlpha ? self::encodeChannel([$a0, $a1, $a2, $a3, $a4], 5, 5, $fys, $n) : null
 		];
 	}
 
 	/**
 	 * Encodes a channel with the Discrete Cosine Transform (DCT) into DC (constant) and normalized AC (varying) terms
 	 *
-	 * @param array<int, float|int> $channel
+	 * @param list<array<int, float|int>> $rows sums of the rows multiplied with the horizontal cosines, per horizontal frequency
+	 * @param array<int, array<int, float>> $fys vertical cosines per vertical frequency
 	 * @return array{float, list<float>, float}
 	 */
-	private static function encodeChannel(array $channel, int $nx, int $ny, int $w, int $h): array
+	private static function encodeChannel(array $rows, int $nx, int $ny, array $fys, int $n): array
 	{
 		$dc = 0;
 		$ac = [];
 		$scale = 0;
 
-		$rows = [];
-		for ($cx = 0; $cx < $nx; $cx++) {
-			$fx = [];
-			for ($x = 0; $x < $w; $x++) {
-				$fx[$x] = cos((pi() / $w) * $cx * ($x + 0.5));
-			}
-			for ($y = 0, $i = 0; $y < $h; $y++) {
-				$sum = 0;
-				for ($x = 0; $x < $w; $x++, $i++) {
-					$sum += $channel[$i] * $fx[$x];
-				}
-				$rows[$cx][$y] = $sum;
-			}
-		}
-
 		for ($cy = 0; $cy < $ny; $cy++) {
-			$fy = [];
-			for ($y = 0; $y < $h; $y++) {
-				$fy[$y] = cos((pi() / $h) * $cy * ($y + 0.5));
-			}
+			$fy = $fys[$cy];
 			for ($cx = 0; ($cx * $ny) < ($nx * ($ny - $cy)); $cx++) {
-				$f = 0;
-				for ($y = 0; $y < $h; $y++) {
-					$f += $rows[$cx][$y] * $fy[$y];
+				$f = 0.0;
+				foreach ($rows[$cx] as $y => $sum) {
+					$f += $sum * $fy[$y];
 				}
-				$f /= $w * $h;
+				$f /= $n;
 				if ($cx || $cy) {
 					$ac[] = $f;
 					$scale = max($scale, abs($f));
@@ -169,8 +351,8 @@ class Codec
 			}
 		}
 		if ($scale) {
-			for ($i = 0, $n = count($ac); $i < $n; $i++) {
-				$ac[$i] = 0.5 + ((0.5 / $scale) * $ac[$i]);
+			foreach ($ac as $i => $f) {
+				$ac[$i] = 0.5 + ((0.5 / $scale) * $f);
 			}
 		}
 

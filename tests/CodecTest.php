@@ -63,7 +63,7 @@ class CodecTest extends TestCase
 	#[DataProvider('hashes')]
 	public function testMetadata(array $hash): void
 	{
-		$this->assertSame(Reference::averageRgba($hash), Codec::averageRgba($hash));
+		$this->assertSame(self::floats(Reference::averageRgba($hash)), self::floats(Codec::averageRgba($hash)));
 		$this->assertSame(Reference::aspectRatio($hash), Codec::aspectRatio($hash));
 
 		$string = Reference::toString($hash);

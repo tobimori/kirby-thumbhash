@@ -12,19 +12,26 @@ require __DIR__ . '/bootstrap.php';
 $filter = $argv[1] ?? '';
 
 /**
- * Returns the mean time of a call in microseconds
+ * Returns the fastest mean times of the calls in microseconds, the rounds alternate between the calls to even out the load of the machine
+ *
+ * @return list<float>
  */
-$measure = static function (Closure $run): float {
-	$run();
-	$iterations = 0;
-	$start = hrtime(true);
-	do {
-		$run();
-		$iterations++;
-		$elapsed = hrtime(true) - $start;
-	} while ($elapsed < 4e8);
+$measure = static function (Closure ...$runs): array {
+	$best = array_fill(0, count($runs), INF);
+	for ($round = 0; $round < 10; $round++) {
+		foreach ($runs as $index => $run) {
+			$iterations = 0;
+			$start = hrtime(true);
+			do {
+				$run();
+				$iterations++;
+				$elapsed = hrtime(true) - $start;
+			} while ($elapsed < 3e7);
+			$best[$index] = min($best[$index], ($elapsed / $iterations) / 1e3);
+		}
+	}
 
-	return ($elapsed / $iterations) / 1e3;
+	return $best;
 };
 
 $files = Images::files();
@@ -65,7 +72,6 @@ foreach ($cases as $name => [$reference, $current]) {
 		continue;
 	}
 
-	$referenceTime = $measure($reference);
-	$currentTime = $measure($current);
+	[$referenceTime, $currentTime] = $measure($reference, $current);
 	printf("%-20s %10.1fµs %10.1fµs %8.2fx\n", $name, $referenceTime, $currentTime, $referenceTime / $currentTime);
 }
