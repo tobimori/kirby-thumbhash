@@ -1,3 +1,4 @@
 - `bash scripts/setup.sh` installs dependencies and creates a Kirby Starterkit playground in `.playground/` with this plugin linked. Panel credentials are in `.playground/.panel-credentials`. The album template uses `thumbhashUri()` placeholders and `averageColor()` backgrounds.
 - `pnpm playground` serves it at `http://localhost:8000` (`pnpm playground:portless` for a Portless URL, see `pnpm exec portless list`).
-- `vendor/` is committed and holds production files only: install development dependencies with `COMPOSER_VENDOR_DIR=.repos/vendor composer install`, never with plain `composer install`.
+- `vendor/` is committed and holds production files only: install development dependencies with `COMPOSER_VENDOR_DIR=.repos/vendor composer install`, never with plain `composer install`. Run Composer scripts the same way, e.g. `COMPOSER_VENDOR_DIR=.repos/vendor composer run analyze`.
+- Mago formats, lints, and analyzes the PHP code (`fmt`, `lint`, `analyze`, `fix` Composer scripts). `stubs/kirby.php` declares Kirby magic methods for the analyzer.

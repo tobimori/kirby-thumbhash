@@ -26,14 +26,24 @@
 		"ext-imagick": "For better performance and quality with Imagick driver"
 	},
 	"require-dev": {
-		"getkirby/cms": "^5.0"
+		"carthage-software/mago": "^1.59.0",
+		"getkirby/cms": "^5.6.1"
 	},
 	"scripts": {
-		"dist": "composer install --no-dev --optimize-autoloader"
+		"analyze": "mago analyze",
+		"dist": "composer install --no-dev --optimize-autoloader",
+		"fix": [
+			"mago lint --fix",
+			"mago fmt"
+		],
+		"fmt": "mago fmt",
+		"fmt:check": "mago fmt --check",
+		"lint": "mago lint"
 	},
 	"config": {
 		"optimize-autoloader": true,
 		"allow-plugins": {
+			"carthage-software/mago": true,
 			"getkirby/composer-installer": true
 		}
 	},

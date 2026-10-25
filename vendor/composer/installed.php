@@ -20,9 +20,9 @@
             'dev_requirement' => false,
         ),
         'srwiez/thumbhash' => array(
-            'pretty_version' => 'v1.5.0',
-            'version' => '1.5.0.0',
-            'reference' => '56f4ed1ca361ba39b243b33e5f47867a833b4973',
+            'pretty_version' => 'v1.6.0',
+            'version' => '1.6.0.0',
+            'reference' => 'ef50e204c4f3adbea23e1ab8b70fd677569a3824',
             'type' => 'library',
             'install_path' => __DIR__ . '/../srwiez/thumbhash',
             'aliases' => array(),

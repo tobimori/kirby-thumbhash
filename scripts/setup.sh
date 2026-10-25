@@ -7,7 +7,7 @@ playground=.playground
 pnpm install --frozen-lockfile
 
 # The repository ships production autoload files in vendor/, so development
-# dependencies (Kirby) go to a separate, ignored folder
+# dependencies (Kirby, Mago) go to a separate, ignored folder
 COMPOSER_VENDOR_DIR=.repos/vendor composer install --no-interaction
 
 kirby_version="$(php -r '

@@ -102,18 +102,31 @@ class Thumbhash
         $dc = 0;
         $ac = [];
         $scale = 0;
-        $fx = [];
+
+        $rows = [];
+        for ($cx = 0; $cx < $nx; $cx++) {
+            $fx = [];
+            for ($x = 0; $x < $w; $x++) {
+                $fx[$x] = cos(pi() / $w * $cx * ($x + 0.5));
+            }
+            for ($y = 0, $i = 0; $y < $h; $y++) {
+                $sum = 0;
+                for ($x = 0; $x < $w; $x++, $i++) {
+                    $sum += $channel[$i] * $fx[$x];
+                }
+                $rows[$cx][$y] = $sum;
+            }
+        }
 
         for ($cy = 0; $cy < $ny; $cy++) {
+            $fy = [];
+            for ($y = 0; $y < $h; $y++) {
+                $fy[$y] = cos(pi() / $h * $cy * ($y + 0.5));
+            }
             for ($cx = 0; $cx * $ny < $nx * ($ny - $cy); $cx++) {
                 $f = 0;
-                for ($x = 0; $x < $w; $x++) {
-                    $fx[$x] = cos(pi() / $w * $cx * ($x + 0.5));
-                }
                 for ($y = 0; $y < $h; $y++) {
-                    for ($x = 0, $fy = cos(pi() / $h * $cy * ($y + 0.5)); $x < $w; $x++) {
-                        $f += $channel[$x + $y * $w] * $fx[$x] * $fy;
-                    }
+                    $f += $rows[$cx][$y] * $fy[$y];
                 }
                 $f /= $w * $h;
                 if ($cx || $cy) {
@@ -125,7 +138,7 @@ class Thumbhash
             }
         }
         if ($scale) {
-            for ($i = 0; $i < count($ac); $i++) {
+            for ($i = 0, $n = count($ac); $i < $n; $i++) {
                 $ac[$i] = 0.5 + 0.5 / $scale * $ac[$i];
             }
         }
@@ -189,23 +202,29 @@ class Thumbhash
         $w = round($ratio > 1 ? 32 : 32 * $ratio);
         $h = round($ratio > 1 ? 32 / $ratio : 32);
         $rgba = [];
-        $fx = [];
-        $fy = [];
+
+        // Precompute the coefficients: they only depend on either x or y
+        $fxs = [];
+        for ($x = 0, $n = max($lx, $hasAlpha ? 5 : 3); $x < $w; $x++) {
+            for ($cx = 0; $cx < $n; $cx++) {
+                $fxs[$x][$cx] = cos(M_PI / $w * ($x + 0.5) * $cx);
+            }
+        }
+        $fys = [];
+        for ($y = 0, $n = max($ly, $hasAlpha ? 5 : 3); $y < $h; $y++) {
+            for ($cy = 0; $cy < $n; $cy++) {
+                $fys[$y][$cy] = cos(M_PI / $h * ($y + 0.5) * $cy);
+            }
+        }
 
         for ($y = 0, $i = 0; $y < $h; $y++) {
+            $fy = $fys[$y];
             for ($x = 0; $x < $w; $x++, $i += 4) {
+                $fx = $fxs[$x];
                 $l = $l_dc;
                 $p = $p_dc;
                 $q = $q_dc;
                 $a = $a_dc;
-
-                // Precompute the coefficients
-                for ($cx = 0, $n = max($lx, $hasAlpha ? 5 : 3); $cx < $n; $cx++) {
-                    $fx[$cx] = cos(M_PI / $w * ($x + 0.5) * $cx);
-                }
-                for ($cy = 0, $n = max($ly, $hasAlpha ? 5 : 3); $cy < $n; $cy++) {
-                    $fy[$cy] = cos(M_PI / $h * ($y + 0.5) * $cy);
-                }
 
                 // Decode L
                 for ($cy = 0, $j = 0; $cy < $ly; $cy++) {
@@ -324,64 +343,29 @@ class Thumbhash
     public static function rgbaToDataURL(int $w, int $h, $rgba)
     {
         $row = $w * 4 + 1;
-        $idat = 6 + $h * (5 + $row);
-        $bytes = [
-            137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0,
-            $w >> 8, $w & 255, 0, 0, $h >> 8, $h & 255, 8, 6, 0, 0, 0, 0, 0, 0, 0,
-            ($idat >> 24) & 0xFF, ($idat >> 16) & 255, ($idat >> 8) & 255, $idat & 255,
-            73, 68, 65, 84, 120, 1
-        ];
-        $table = [
-            0, 498536548, 997073096, 651767980, 1994146192, 1802195444, 1303535960,
-            1342533948, -306674912, -267414716, -690576408, -882789492, -1687895376,
-            -2032938284, -1609899400, -1111625188
-        ];
-        $a = 1;
-        $b = 0;
-        $y = 0;
-        $i = 0;
-        $end = $row - 1;
+        $raw = '';
+        $deflate = "\x78\x01"; // zlib header
 
-        for (; $y < $h; $y++, $end += $row - 1) {
-            array_push($bytes, ($y + 1 < $h ? 0 : 1), $row & 255, $row >> 8, ~$row & 255, ($row >> 8) ^ 255, 0);
-
-            for ($b = ($b + $a) % 65521; $i < $end; $i++) {
-                $u = intval($rgba[$i]) & 255;
-                $bytes[] = $u;
-                $a = ($a + $u) % 65521;
-                $b = ($b + $a) % 65521;
-            }
+        // One uncompressed ("stored") deflate block per scanline
+        for ($y = 0; $y < $h; $y++) {
+            $line = "\0" . pack('C*', ...array_map('intval', array_slice($rgba, $y * $w * 4, $w * 4)));
+            $deflate .= pack('Cvv', $y + 1 < $h ? 0 : 1, $row, ~$row & 0xFFFF) . $line;
+            $raw .= $line;
         }
+        $deflate .= pack('N', hexdec(hash('adler32', $raw)));
 
-        array_push($bytes,
-            $b >> 8, $b & 255, $a >> 8, $a & 255, 0, 0, 0, 0,
-            0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
-        );
+        $png = "\x89PNG\r\n\x1a\n"
+            . static::pngChunk('IHDR', pack('NNC5', $w, $h, 8, 6, 0, 0, 0))
+            . static::pngChunk('IDAT', $deflate)
+            . static::pngChunk('IEND', '');
 
-        $ranges = [[12, 29], [37, 41 + $idat]];
-
-        foreach ($ranges as $range) {
-            $start = $range[0];
-            $end = $range[1];
-            $c = ~0;
-
-            for ($i = $start; $i < $end; $i++) {
-                $c ^= $bytes[$i];
-                $c = (($c >> 4) & 0xFFFFFFF) ^ $table[$c & 15];
-                $c = (($c >> 4) & 0xFFFFFFF) ^ $table[$c & 15];
-            }
-
-            $c = ~$c;
-            $bytes[$end++] = ($c >> 24) & 0xFF;
-            $bytes[$end++] = ($c >> 16) & 255;
-            $bytes[$end++] = ($c >> 8) & 255;
-            $bytes[$end++] = $c & 255;
-        }
-
-
-        return 'data:image/png;base64,' . base64_encode(implode('', array_map('chr', $bytes)));
+        return 'data:image/png;base64,' . base64_encode($png);
     }
 
+    protected static function pngChunk(string $type, string $data): string
+    {
+        return pack('N', strlen($data)) . $type . $data . pack('N', crc32($type . $data));
+    }
 
     /**
      * Decodes a ThumbHash to a PNG data URL. This is a convenience function that
