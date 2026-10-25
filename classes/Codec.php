@@ -201,6 +201,10 @@ class Codec
 			$avg_a = 0.0;
 			for ($j = 0; $j < $end; $j += 4) {
 				$alpha = $rgba[$j + 3];
+				if ($alpha === 0) {
+					continue;
+				}
+
 				$weight = $weights[$alpha];
 				$avg_r += $weight * $rgba[$j];
 				$avg_g += $weight * $rgba[$j + 1];
@@ -215,24 +219,26 @@ class Codec
 			$hasAlpha = $avg_a < $n;
 
 			// Shares of the average color per alpha value
-			$base_r = [];
-			$base_g = [];
-			$base_b = [];
-			for ($i = 0; $i < 256; $i++) {
-				$base_r[$i] = $avg_r * (1 - $alphas[$i]);
-				$base_g[$i] = $avg_g * (1 - $alphas[$i]);
-				$base_b[$i] = $avg_b * (1 - $alphas[$i]);
-			}
+			$base_r = array_map(static fn (float $alpha): float => $avg_r * (1 - $alpha), $alphas);
+			$base_g = array_map(static fn (float $alpha): float => $avg_g * (1 - $alpha), $alphas);
+			$base_b = array_map(static fn (float $alpha): float => $avg_b * (1 - $alpha), $alphas);
 
-			// Convert the image from RGBA to LPQA (composite atop the average color)
+			// Transparent pixels only have the average color
+			$r = $base_r[0];
+			$g = $base_g[0];
+			$b = $base_b[0];
+			$transparent_l = ($r + $g + $b) / 3;
+			$transparent_p = (($r + $g) / 2) - $b;
+			$transparent_q = $r - $g;
+
+			// Convert the image from RGBA to LPQA (composite atop the average color). The alpha of a pixel isn't 255, so
+			// the luminance has 5 horizontal frequencies at most, and the alpha terms of transparent pixels are 0.
 			for ($y = 0, $j = 0; $y < $h; $y++) {
 				$sl0 = 0.0;
 				$sl1 = 0.0;
 				$sl2 = 0.0;
 				$sl3 = 0.0;
 				$sl4 = 0.0;
-				$sl5 = 0.0;
-				$sl6 = 0.0;
 				$sp0 = 0.0;
 				$sp1 = 0.0;
 				$sp2 = 0.0;
@@ -245,45 +251,47 @@ class Codec
 				$sa3 = 0.0;
 				$sa4 = 0.0;
 				for ($x = 0; $x < $w; $x++, $j += 4) {
-					$alpha = $rgba[$j + 3];
-					$weight = $weights[$alpha];
-					$r = $base_r[$alpha] + ($weight * $rgba[$j]);
-					$g = $base_g[$alpha] + ($weight * $rgba[$j + 1]);
-					$b = $base_b[$alpha] + ($weight * $rgba[$j + 2]);
-					$l = ($r + $g + $b) / 3;
-					$p = (($r + $g) / 2) - $b;
-					$q = $r - $g;
-					$a = $alphas[$alpha];
 					$f1 = $fx1[$x];
 					$f2 = $fx2[$x];
 					$f3 = $fx3[$x];
 					$f4 = $fx4[$x];
+					$alpha = $rgba[$j + 3];
+					if ($alpha === 0) {
+						$l = $transparent_l;
+						$p = $transparent_p;
+						$q = $transparent_q;
+					} else {
+						$weight = $weights[$alpha];
+						$r = $base_r[$alpha] + ($weight * $rgba[$j]);
+						$g = $base_g[$alpha] + ($weight * $rgba[$j + 1]);
+						$b = $base_b[$alpha] + ($weight * $rgba[$j + 2]);
+						$l = ($r + $g + $b) / 3;
+						$p = (($r + $g) / 2) - $b;
+						$q = $r - $g;
+						$a = $alphas[$alpha];
+						$sa0 += $a;
+						$sa1 += $a * $f1;
+						$sa2 += $a * $f2;
+						$sa3 += $a * $f3;
+						$sa4 += $a * $f4;
+					}
 					$sl0 += $l;
 					$sl1 += $l * $f1;
 					$sl2 += $l * $f2;
 					$sl3 += $l * $f3;
 					$sl4 += $l * $f4;
-					$sl5 += $l * $fx5[$x];
-					$sl6 += $l * $fx6[$x];
 					$sp0 += $p;
 					$sp1 += $p * $f1;
 					$sp2 += $p * $f2;
 					$sq0 += $q;
 					$sq1 += $q * $f1;
 					$sq2 += $q * $f2;
-					$sa0 += $a;
-					$sa1 += $a * $f1;
-					$sa2 += $a * $f2;
-					$sa3 += $a * $f3;
-					$sa4 += $a * $f4;
 				}
 				$l0[$y] = $sl0;
 				$l1[$y] = $sl1;
 				$l2[$y] = $sl2;
 				$l3[$y] = $sl3;
 				$l4[$y] = $sl4;
-				$l5[$y] = $sl5;
-				$l6[$y] = $sl6;
 				$p0[$y] = $sp0;
 				$p1[$y] = $sp1;
 				$p2[$y] = $sp2;
