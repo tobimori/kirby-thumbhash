@@ -9,6 +9,7 @@ use Kirby\Toolkit\Str;
 use function ceil;
 use function extension_loaded;
 use function file_get_contents;
+use function gd_info;
 use function getimagesize;
 use function imagealphablending;
 use function imagecolorat;
@@ -22,6 +23,7 @@ use function imagetypes;
 use function ini_get;
 use function memory_get_usage;
 use function min;
+use function str_contains;
 
 class GdDriver implements ImageDriver
 {
@@ -41,8 +43,9 @@ class GdDriver implements ImageDriver
 			throw new Exception("GD can't read {$size['mime']} images");
 		}
 
-		// Running out of memory is a fatal error that can't be caught. GD needs up to about 6 bytes per pixel.
-		$limit = Str::toBytes((string)ini_get('memory_limit'));
+		// The GD bundled with PHP allocates its images in the PHP memory limit, and running out of memory is a fatal error that
+		// can't be caught. GD needs up to about 6 bytes per pixel. A system libgd allocates outside of the PHP memory limit.
+		$limit = str_contains((string)gd_info()['GD Version'], 'bundled') ? Str::toBytes((string)ini_get('memory_limit')) : 0;
 		if ($limit > 0 && (memory_get_usage() + (6 * $size[0] * $size[1])) > $limit) {
 			throw new Exception("Not enough memory to read a {$size[0]}x{$size[1]} image with GD");
 		}
