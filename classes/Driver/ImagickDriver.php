@@ -6,6 +6,7 @@ use Exception;
 use Imagick;
 
 use function ceil;
+use function count;
 use function extension_loaded;
 use function getimagesize;
 use function max;
@@ -42,8 +43,23 @@ class ImagickDriver implements ImageDriver
 			$image->setImagePage(0, 0, 0, 0);
 			$image->scaleImage($width, $height);
 
-			/** @var list<int> */
-			return $image->exportImagePixels(0, 0, $width, $height, 'RGBA', Imagick::PIXEL_CHAR);
+			if ($image->getImageAlphaChannel()) {
+				/** @var list<int> */
+				return $image->exportImagePixels(0, 0, $width, $height, 'RGBA', Imagick::PIXEL_CHAR);
+			}
+
+			// Without an alpha channel, ImageMagick 6 exports undefined alpha values
+			/** @var list<int> $rgb */
+			$rgb = $image->exportImagePixels(0, 0, $width, $height, 'RGB', Imagick::PIXEL_CHAR);
+			$pixels = [];
+			for ($i = 0, $count = count($rgb); $i < $count; $i += 3) {
+				$pixels[] = $rgb[$i];
+				$pixels[] = $rgb[$i + 1];
+				$pixels[] = $rgb[$i + 2];
+				$pixels[] = 255;
+			}
+
+			return $pixels;
 		} finally {
 			$image->clear();
 		}
