@@ -16,3 +16,6 @@ package.json export-ignore
 pnpm-lock.yaml export-ignore
 t3.json export-ignore
 AGENTS.md export-ignore
+
+# Generated test fixtures
+tests/fixtures/codec.json linguist-generated

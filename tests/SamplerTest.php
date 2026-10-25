@@ -15,7 +15,7 @@ class SamplerTest extends TestCase
 	 */
 	public static function images(): iterable
 	{
-		foreach (array_keys(Fixtures::IMAGES) as $image) {
+		foreach (array_keys(self::IMAGES) as $image) {
 			yield $image => [$image];
 		}
 	}
@@ -79,7 +79,7 @@ class SamplerTest extends TestCase
 	#[DataProvider('drivers')]
 	public function testFocus(string $driver): void
 	{
-		$source = imagecreatefromjpeg(Fixtures::ROOT . '/earthrise.jpg') ?: null;
+		$source = imagecreatefromjpeg(self::FIXTURES . '/earthrise.jpg') ?: null;
 		$this->assertNotNull($source);
 
 		foreach (['0% 50%' => 0, '100% 50%' => 400] as $focus => $left) {

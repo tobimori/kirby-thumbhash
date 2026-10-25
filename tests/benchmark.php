@@ -7,7 +7,6 @@ use tobimori\Codec;
 use tobimori\Driver\GdDriver;
 use tobimori\Driver\ImagickDriver;
 use tobimori\Sampler;
-use tobimori\Tests\Fixtures;
 use tobimori\ThumbHash;
 
 require __DIR__ . '/bootstrap.php';
@@ -33,27 +32,31 @@ $measure = static function (Closure $run): float {
 	return $best;
 };
 
-$cases = [];
-foreach (['earthrise-32x21', 'wizard-24x32', 'earthrise-100x67', 'wizard-75x100'] as $name) {
-	['width' => $w, 'height' => $h, 'pixels' => $path] = Fixtures::expected()['images'][$name];
-	$rgba = Fixtures::pixels($path);
-	$hash = Codec::encode($w, $h, $rgba);
-	$image = ThumbHash::decode($hash);
-	$cases["encode {$name}"] = static fn () => Codec::encode($w, $h, $rgba);
-	$cases["decode {$name}"] = static function () use ($hash): string {
-		['w' => $w, 'h' => $h, 'rgba' => $rgba] = Codec::decode($hash);
-
-		return Codec::pngDataUrl($w, $h, $rgba);
-	};
-	$cases["uri {$name}"] = static fn () => ThumbHash::uri($image, 1.0);
-}
-
+$fixtures = __DIR__ . '/fixtures/images';
 $root = App::instance()->root('index');
-F::copy(Fixtures::ROOT . '/earthrise.jpg', "{$root}/assets/earthrise.jpg", true);
-$asset = new Asset('assets/earthrise.jpg');
-$cases['sample earthrise.jpg gd'] = static fn () => Sampler::sample($asset, GdDriver::class, 32, 21);
-if (ImagickDriver::isAvailable()) {
-	$cases['sample earthrise.jpg imagick'] = static fn () => Sampler::sample($asset, ImagickDriver::class, 32, 21);
+$cases = [];
+foreach (['earthrise.jpg', 'wizard.png'] as $image) {
+	F::copy("{$fixtures}/{$image}", "{$root}/assets/{$image}", true);
+	$asset = new Asset("assets/{$image}");
+	[$width, $height] = $asset->ratio() >= 1 ? [32, (int)round(32 / $asset->ratio())] : [(int)round(32 * $asset->ratio()), 32];
+
+	$cases["sample {$image} gd"] = static fn () => Sampler::sample($asset, GdDriver::class, $width, $height);
+	if (ImagickDriver::isAvailable()) {
+		$cases["sample {$image} imagick"] = static fn () => Sampler::sample($asset, ImagickDriver::class, $width, $height);
+	}
+
+	foreach ([1, 3] as $scale) {
+		[$w, $h, $rgba] = Sampler::sample($asset, GdDriver::class, $width * $scale, $height * $scale);
+		$hash = Codec::encode($w, $h, $rgba);
+		$placeholder = ThumbHash::decode($hash);
+		$cases["encode {$image} {$w}x{$h}"] = static fn () => Codec::encode($w, $h, $rgba);
+		$cases["decode {$image} {$w}x{$h}"] = static function () use ($hash): string {
+			['w' => $w, 'h' => $h, 'rgba' => $rgba] = Codec::decode($hash);
+
+			return Codec::pngDataUrl($w, $h, $rgba);
+		};
+		$cases["uri {$image} {$w}x{$h}"] = static fn () => ThumbHash::uri($placeholder, 1.0);
+	}
 }
 
 foreach ($cases as $name => $run) {

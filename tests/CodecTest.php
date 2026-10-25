@@ -6,71 +6,67 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use tobimori\Codec;
 
 /**
- * Compares the codec with the output of the original JavaScript implementation in tests/fixtures/expected.json
+ * Compares the codec with the output of the original JavaScript implementation, which tests/fixtures/codec.mjs writes to
+ * tests/fixtures/codec.json for each image and for crops of it
+ *
+ * @phpstan-type Fixtures array<string, array{width: int, height: int, rgba: string, cases: list<array{x: int, y: int, w: int, h: int, hash: string, png: string, average: array{r: float|int, g: float|int, b: float|int, a: float|int}, ratio: float|int}>}>
  */
 class CodecTest extends TestCase
 {
 	/**
-	 * @return iterable<string, array{array{pixels: string, width: int, height: int, hash: string, decoded: array{width: int, height: int, rgba: string}, dataUrl: string, averageRgba: array<string, float|int>, aspectRatio: float|int}}>
+	 * @var Fixtures|null
+	 */
+	private static array|null $fixtures = null;
+
+	/**
+	 * @return iterable<string, array{string}>
 	 */
 	public static function images(): iterable
 	{
-		foreach (Fixtures::expected()['images'] as $name => $expected) {
-			yield $name => [$expected];
+		foreach (array_keys(self::fixtures()) as $image) {
+			yield $image => [$image];
 		}
 	}
 
-	/**
-	 * @param array{pixels: string, width: int, height: int, hash: string, decoded: array{width: int, height: int, rgba: string}, dataUrl: string, averageRgba: array<string, float|int>, aspectRatio: float|int} $expected
-	 */
 	#[DataProvider('images')]
-	public function testImage(array $expected): void
+	public function testMatchesJavaScript(string $image): void
 	{
-		$hash = Codec::encode($expected['width'], $expected['height'], Fixtures::pixels($expected['pixels']));
-		$this->assertSame($expected['hash'], Codec::toString($hash));
+		['width' => $width, 'rgba' => $rgba, 'cases' => $cases] = self::fixtures()[$image];
+		/** @var list<int> $pixels */
+		$pixels = array_values((array)unpack('C*', (string)base64_decode($rgba, true)));
 
-		$image = Codec::decode($hash);
-		$this->assertSame([$expected['decoded']['width'], $expected['decoded']['height']], [$image['w'], $image['h']]);
-		$this->assertSame($expected['decoded']['rgba'], self::rgbaHash($image['rgba']));
-		$this->assertSame($expected['dataUrl'], Codec::pngDataUrl($image['w'], $image['h'], $image['rgba']));
-		$this->assertSame(min(array_column(array_chunk(array_map(intval(...), $image['rgba']), 4), 3)) < 255, $image['transparent']);
-
-		$this->assertSame(array_map(floatval(...), $expected['averageRgba']), array_map(floatval(...), Codec::averageRgba($hash)));
-		$this->assertSame((float)$expected['aspectRatio'], Codec::aspectRatio($hash));
-		$this->assertSame($hash, Codec::fromString($expected['hash']));
-	}
-
-	/**
-	 * A different order of floating-point operations changes the output only for some inputs, so many crops are checked
-	 */
-	public function testCrops(): void
-	{
-		$expected = Fixtures::expected();
-		$pixels = [];
-		foreach ($expected['crops'] as $crop) {
-			$source = $expected['images'][$crop['image']];
-			$pixels[$crop['image']] ??= Fixtures::pixels($source['pixels']);
-			$rgba = [];
-			for ($row = 0; $row < $crop['h']; $row++) {
-				array_push($rgba, ...array_slice($pixels[$crop['image']], ((($crop['y'] + $row) * $source['width']) + $crop['x']) * 4, $crop['w'] * 4));
+		foreach ($cases as $expected) {
+			['x' => $x, 'y' => $y, 'w' => $w, 'h' => $h] = $expected;
+			$message = "{$image} cropped to {$w}x{$h}+{$x}+{$y}";
+			$crop = [];
+			for ($row = $y; $row < ($y + $h); $row++) {
+				array_push($crop, ...array_slice($pixels, (($row * $width) + $x) * 4, $w * 4));
 			}
 
-			$name = "{$crop['image']} {$crop['w']}x{$crop['h']}+{$crop['x']}+{$crop['y']}";
-			$hash = Codec::encode($crop['w'], $crop['h'], $rgba);
-			$this->assertSame($crop['hash'], Codec::toString($hash), $name);
-			$this->assertSame($crop['decoded'], self::rgbaHash(Codec::decode($hash)['rgba']), $name);
-			$this->assertSame(array_map(floatval(...), $crop['averageRgba']), array_map(floatval(...), Codec::averageRgba($hash)), $name);
-			$this->assertSame((float)$crop['aspectRatio'], Codec::aspectRatio($hash), $name);
+			$hash = Codec::encode($w, $h, $crop);
+			$this->assertSame($expected['hash'], Codec::toString($hash), $message);
+			$this->assertSame($hash, Codec::fromString($expected['hash']), $message);
+
+			$decoded = Codec::decode($hash);
+			$this->assertSame($expected['png'], sha1(Codec::pngDataUrl($decoded['w'], $decoded['h'], $decoded['rgba'])), $message);
+			$this->assertSame(min(array_map(intval(...), array_column(array_chunk($decoded['rgba'], 4), 3))) < 255, $decoded['transparent'], $message);
+
+			$this->assertSame(array_map(floatval(...), $expected['average']), array_map(floatval(...), Codec::averageRgba($hash)), $message);
+			$this->assertSame((float)$expected['ratio'], Codec::aspectRatio($hash), $message);
 		}
 	}
 
 	/**
-	 * The JavaScript implementation stores the decoded pixels in a Uint8Array, which truncates them
-	 *
-	 * @param list<float|int> $rgba
+	 * @return Fixtures
 	 */
-	private static function rgbaHash(array $rgba): string
+	private static function fixtures(): array
 	{
-		return sha1(pack('C*', ...array_map(intval(...), $rgba)));
+		if (self::$fixtures === null) {
+			/** @var Fixtures $fixtures */
+			$fixtures = json_decode((string)file_get_contents(__DIR__ . '/fixtures/codec.json'), true, flags: JSON_THROW_ON_ERROR);
+			self::$fixtures = $fixtures;
+		}
+
+		return self::$fixtures;
 	}
 }
