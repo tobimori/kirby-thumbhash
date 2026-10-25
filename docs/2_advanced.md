@@ -64,13 +64,6 @@ $file->thumbhashUri(ratio: 16/9, blurRadius: 2);
 $file->averageColor(format: 'rgba', ratio: 1.5);
 ```
 
-**Legacy array syntax** (deprecated but still supported):
-
-```php
-$file->thumbhash(['ratio' => 16/9]);
-$file->thumbhashUri(['ratio' => 3/2, 'blurRadius' => 0]);
-```
-
 ### Clear cache
 
 The encoding cache is automatically cleared when an image gets replaced or updated, however you can also clear the cache manually with the `clearCache` static method:

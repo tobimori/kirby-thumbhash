@@ -10,14 +10,14 @@ use tobimori\ThumbHash;
 
 $methods = [
 	/** @kql-allowed */
-	'thumbhash' => function (float|array|null $ratio = null, array $options = []) {
+	'thumbhash' => function (float|null $ratio = null) {
 		/** @var Asset|File $this */
-		return ThumbHash::encode($this, $ratio, $options);
+		return ThumbHash::encode($this, $ratio);
 	},
 	/** @kql-allowed */
-	'thumbhashUri' => function (float|array|null $ratio = null, float|null $blurRadius = null, array $options = []) {
+	'thumbhashUri' => function (float|null $ratio = null, float|null $blurRadius = null) {
 		/** @var Asset|File $this */
-		return ThumbHash::thumb($this, $ratio, $blurRadius, $options);
+		return ThumbHash::thumb($this, $ratio, $blurRadius);
 	},
 	/** @kql-allowed */
 	'averageColor' => function (string $format = 'hex', float|null $ratio = null) {

@@ -63,7 +63,6 @@ class ThumbHashTest extends TestCase
 
 		$this->assertSame(1.0, Codec::aspectRatio(Codec::fromString((string)$square)));
 		$this->assertNotSame($file->thumbhash(), $square);
-		$this->assertSame($square, $file->thumbhash(['ratio' => 1.0]));
 	}
 
 	public function testCache(): void

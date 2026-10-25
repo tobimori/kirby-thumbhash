@@ -42,25 +42,11 @@ class ThumbHash
 	/**
 	 * Creates thumb for an image based on the ThumbHash algorithm, returns a data URI with an SVG filter
 	 *
-	 * @param float|array|null $ratio aspect ratio, an options array is deprecated
+	 * @param float|null $ratio aspect ratio, the file's own by default
 	 * @param float|null $blurRadius blur radius (default from config)
-	 * @param array $options @deprecated use $ratio and $blurRadius parameters instead
 	 */
-	public static function thumb(Asset|File $file, float|array|null $ratio = null, float|null $blurRadius = null, array $options = []): string|null
+	public static function thumb(Asset|File $file, float|null $ratio = null, float|null $blurRadius = null): string|null
 	{
-		if ($file->isResizable() === false) {
-			return null;
-		}
-
-		// backwards compatibility: treat an array $ratio as options
-		if (is_array($ratio)) {
-			$options = [...$ratio, ...$options];
-			$ratio = null;
-		}
-
-		$ratio = self::toFloat($options['ratio'] ?? null) ?? $ratio;
-		$blurRadius = self::toFloat($options['blurRadius'] ?? null) ?? $blurRadius;
-
 		$hash = self::encode($file, $ratio);
 		if ($hash === null) {
 			return null;
@@ -74,24 +60,16 @@ class ThumbHash
 	/**
 	 * Returns the ThumbHash for a Kirby file object
 	 *
-	 * @param float|array|null $ratio aspect ratio, an options array is deprecated
-	 * @param array $options @deprecated use $ratio parameter instead
+	 * @param float|null $ratio aspect ratio, the file's own by default
 	 */
-	public static function encode(Asset|File $file, float|array|null $ratio = null, array $options = []): string|null
+	public static function encode(Asset|File $file, float|null $ratio = null): string|null
 	{
 		if ($file->isResizable() === false) {
 			return null;
 		}
 
 		$kirby = App::instance();
-
-		// backwards compatibility: treat an array $ratio as options
-		if (is_array($ratio)) {
-			$options = [...$ratio, ...$options];
-			$ratio = null;
-		}
-
-		$ratio = self::toFloat($options['ratio'] ?? null) ?? $ratio ?? $file->ratio();
+		$ratio ??= $file->ratio();
 		$ratioKey = (string)$ratio;
 		$memo = self::$hashes ?? new WeakMap();
 		self::$hashes = $memo;
@@ -190,18 +168,10 @@ class ThumbHash
 	 * Returns a decoded ThumbHash as a blurred SVG data URI, or as its PNG data URI if the blur radius is 0
 	 *
 	 * @param array{uri: string, width: int, height: int, transparent: bool} $image
-	 * @param float|array|null $blurRadius blur radius (default from config), an options array is deprecated
-	 * @param array $options @deprecated use $blurRadius parameter instead
+	 * @param float|null $blurRadius blur radius (default from config)
 	 */
-	public static function uri(array $image, float|array|null $blurRadius = null, array $options = []): string
+	public static function uri(array $image, float|null $blurRadius = null): string
 	{
-		// backwards compatibility: treat an array $blurRadius as options
-		if (is_array($blurRadius)) {
-			$options = [...$blurRadius, ...$options];
-			$blurRadius = null;
-		}
-
-		$blurRadius = self::toFloat($options['blurRadius'] ?? null) ?? $blurRadius;
 		$blurRadius ??= self::toFloat(App::instance()->option('tobimori.thumbhash.blurRadius')) ?? 1.0;
 
 		if ($blurRadius === 0.0) {
