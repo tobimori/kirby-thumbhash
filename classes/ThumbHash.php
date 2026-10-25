@@ -302,7 +302,7 @@ class ThumbHash
 
 		// Base64 data URIs only have three characters to encode
 		$uri = $image['uri'];
-		$uri = strspn($uri, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=:;,') === strlen($uri)
+		$uri = preg_match('#^[A-Za-z0-9+/=:;,]*$#D', $uri) === 1
 			? str_replace(['+', ';', ','], ['%2B', '%3B', '%2C'], $uri)
 			: self::encodeUri(preg_replace(['/\s+/', '/> </'], [' ', '><'], $uri) ?? $uri);
 
