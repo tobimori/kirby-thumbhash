@@ -6,8 +6,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use tobimori\Codec;
 
 /**
- * Compares the codec with the output of the original JavaScript implementation, which tests/fixtures/codec.mjs writes to
- * tests/fixtures/codec.json for each image and for crops of it
+ * Compares the codec with the original JavaScript implementation, https://github.com/evanw/thumbhash (npm thumbhash 0.1.1).
+ * tests/fixtures/codec.json holds the pixels of each image, scaled down to at most 100 x 100, and the JavaScript output for
+ * the full image and for centered crops of every 6th width and height. A different order of floating-point operations
+ * changes the output for only some inputs, so the crops give many inputs. Crops with an average alpha of 0 are left out:
+ * their placeholder is invisible, and the codec adds the DCT terms in another order, so their rounding noise differs.
  *
  * @phpstan-type Fixtures array<string, array{width: int, height: int, rgba: string, cases: list<array{x: int, y: int, w: int, h: int, hash: string, png: string, average: array{r: float|int, g: float|int, b: float|int, a: float|int}, ratio: float|int}>}>
  */

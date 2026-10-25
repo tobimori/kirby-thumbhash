@@ -13,6 +13,11 @@ use PHPUnit\Framework\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+	/**
+	 * earthrise.jpg is "Earthrise" by NASA/Bill Anders (public domain),
+	 * https://commons.wikimedia.org/wiki/File:NASA-Apollo8-Dec24-Earthrise.jpg, and the other earthrise and panorama images
+	 * are made from it. rose, wizard, and logo are built-in images of ImageMagick.
+	 */
 	protected const string FIXTURES = __DIR__ . '/fixtures/images';
 
 	/**
