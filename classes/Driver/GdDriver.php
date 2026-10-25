@@ -23,21 +23,44 @@ class GdDriver implements ImageDriver
 		$width = imagesx($image);
 		$height = imagesy($image);
 
+		// GD only supports 7-bit alpha channel
+		$alphas = [];
+		for ($alpha = 0; $alpha < 128; $alpha++) {
+			$alphas[$alpha] = 255 - (int)ceil(($alpha * 255) / 127);
+		}
+
 		$pixels = [];
+		if (imageistruecolor($image)) {
+			for ($y = 0; $y < $height; $y++) {
+				for ($x = 0; $x < $width; $x++) {
+					$color = (int)imagecolorat($image, $x, $y);
+					$pixels[] = ($color >> 16) & 255;
+					$pixels[] = ($color >> 8) & 255;
+					$pixels[] = $color & 255;
+					$pixels[] = $alphas[$color >> 24];
+				}
+			}
+
+			return [$width, $height, $pixels];
+		}
+
+		$reds = $greens = $blues = $paletteAlphas = [];
+		for ($index = 0, $total = imagecolorstotal($image); $index < $total; $index++) {
+			/** @var array{red: int, green: int, blue: int, alpha: int} $color */
+			$color = imagecolorsforindex($image, $index);
+			$reds[$index] = $color['red'];
+			$greens[$index] = $color['green'];
+			$blues[$index] = $color['blue'];
+			$paletteAlphas[$index] = $alphas[$color['alpha']];
+		}
+
 		for ($y = 0; $y < $height; $y++) {
 			for ($x = 0; $x < $width; $x++) {
-				$color_index = imagecolorat($image, $x, $y);
-				if ($color_index === false) {
-					throw new Exception('Unable to read pixel data with GD');
-				}
-
-				/** @var array{red: int, green: int, blue: int, alpha: int} $color */
-				$color = imagecolorsforindex($image, $color_index);
-				$alpha = 255 - (int)ceil(($color['alpha'] * 255) / 127); // GD only supports 7-bit alpha channel
-				$pixels[] = $color['red'];
-				$pixels[] = $color['green'];
-				$pixels[] = $color['blue'];
-				$pixels[] = $alpha;
+				$index = (int)imagecolorat($image, $x, $y);
+				$pixels[] = $reds[$index];
+				$pixels[] = $greens[$index];
+				$pixels[] = $blues[$index];
+				$pixels[] = $paletteAlphas[$index];
 			}
 		}
 
