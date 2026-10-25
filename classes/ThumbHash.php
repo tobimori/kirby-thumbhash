@@ -9,12 +9,27 @@ use Kirby\Exception\Exception;
 use Kirby\Filesystem\Asset;
 use tobimori\Driver\GdDriver;
 use tobimori\Driver\ImagickDriver;
+use WeakMap;
 
 use function is_array;
 use function is_string;
 
 class ThumbHash
 {
+	/**
+	 * ThumbHashes of the files in this request per ratio, to read the cache only once per file
+	 *
+	 * @var WeakMap<Asset|File, array<string, string>>|null
+	 */
+	private static WeakMap|null $hashes = null;
+
+	/**
+	 * Decoded ThumbHashes of this request
+	 *
+	 * @var array<string, array{uri: string, width: int, height: int, transparent: bool}>
+	 */
+	private static array $images = [];
+
 	/**
 	 * Creates thumb for an image based on the ThumbHash algorithm, returns a data URI with an SVG filter.
 	 *
@@ -68,8 +83,15 @@ class ThumbHash
 		}
 
 		$ratio = self::toFloat($options['ratio'] ?? null) ?? $ratio ?? $file->ratio();
-		$id = self::getId($file);
 		$ratioKey = (string)$ratio;
+		/** @var WeakMap<Asset|File, array<string, string>> $memo */
+		$memo = self::$hashes ??= new WeakMap();
+		$hashes = $memo[$file] ?? [];
+		if (isset($hashes[$ratioKey])) {
+			return $hashes[$ratioKey];
+		}
+
+		$id = self::getId($file);
 		$cache = $kirby->cache('tobimori.thumbhash.encode');
 		$cacheData = $cache->get($id);
 
@@ -80,6 +102,8 @@ class ThumbHash
 
 		$cacheData = is_array($cacheData) ? $cacheData : [];
 		if (is_string($cacheData[$ratioKey] ?? null)) {
+			$hashes[$ratioKey] = $cacheData[$ratioKey];
+			$memo[$file] = $hashes;
 			return $cacheData[$ratioKey];
 		}
 
@@ -145,6 +169,8 @@ class ThumbHash
 
 		$cacheData[$ratioKey] = $thumbhash;
 		$cache->set($id, $cacheData);
+		$hashes[$ratioKey] = $thumbhash;
+		$memo[$file] = $hashes;
 
 		return $thumbhash;
 	}
@@ -157,19 +183,25 @@ class ThumbHash
 	 */
 	public static function decode(string|array $thumbhash): array
 	{
-		$kirby = App::instance();
-		$cache = $kirby->cache('tobimori.thumbhash.decode');
-
 		$id = is_array($thumbhash) ? Codec::toString($thumbhash) : $thumbhash;
-		$thumbhash = is_string($thumbhash) ? Codec::fromString($thumbhash) : $thumbhash;
+		if (isset(self::$images[$id])) {
+			return self::$images[$id];
+		}
+
+		// a few hundred decoded images are enough for a page, long running processes shouldn't keep all of them
+		if (count(self::$images) >= 500) {
+			self::$images = [];
+		}
+
+		$cache = App::instance()->cache('tobimori.thumbhash.decode');
 
 		/** @var array{uri: string, width: int, height: int, transparent: bool}|null $cacheData */
 		$cacheData = $cache->get($id);
 		if ($cacheData !== null) {
-			return $cacheData;
+			return self::$images[$id] = $cacheData;
 		}
 
-		$image = Codec::decode($thumbhash);
+		$image = Codec::decode(is_string($thumbhash) ? Codec::fromString($thumbhash) : $thumbhash);
 		$data = [
 			'uri' => Codec::pngDataUrl($image['w'], $image['h'], $image['rgba']),
 			'width' => $image['w'],
@@ -178,7 +210,7 @@ class ThumbHash
 		];
 
 		$cache->set($id, $data);
-		return $data;
+		return self::$images[$id] = $data;
 	}
 
 	/**
@@ -242,9 +274,8 @@ class ThumbHash
 	 */
 	public static function clearCache(Asset|File $file)
 	{
-		$cache = App::instance()->cache('tobimori.thumbhash.encode');
-		$id = self::getId($file);
-		$cache->remove($id);
+		self::$hashes = null;
+		App::instance()->cache('tobimori.thumbhash.encode')->remove(self::getId($file));
 	}
 
 	/**
