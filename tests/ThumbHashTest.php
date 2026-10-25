@@ -7,6 +7,7 @@ use Kirby\Filesystem\Asset;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\DataProviderExternal;
 use PHPUnit\Framework\TestCase;
 use tobimori\Tests\Reference\Reference;
 use tobimori\ThumbHash;
@@ -14,19 +15,9 @@ use tobimori\ThumbHash;
 class ThumbHashTest extends TestCase
 {
 	/**
-	 * @return iterable<string, array{list<int>}>
-	 */
-	public static function hashes(): iterable
-	{
-		foreach (Hashes::all() as $name => $hash) {
-			yield $name => [$hash];
-		}
-	}
-
-	/**
 	 * @param list<int> $hash
 	 */
-	#[DataProvider('hashes')]
+	#[DataProviderExternal(Hashes::class, 'cases')]
 	public function testDecode(array $hash): void
 	{
 		$this->assertSame(Reference::decode($hash), ThumbHash::decode(Reference::toString($hash)));
@@ -36,7 +27,7 @@ class ThumbHashTest extends TestCase
 	/**
 	 * @param list<int> $hash
 	 */
-	#[DataProvider('hashes')]
+	#[DataProviderExternal(Hashes::class, 'cases')]
 	public function testUri(array $hash): void
 	{
 		$image = Reference::decode($hash);
@@ -84,7 +75,8 @@ class ThumbHashTest extends TestCase
 		ThumbHash::clearCache($asset);
 		$this->assertSame($hash, ThumbHash::encode($asset));
 
-		// the sample keeps the aspect ratio and the average color of the whole image, the hash has 4 bits for the average alpha
+		// The sample is cropped and scaled, so compare only the size and the average color with a hash of the whole image.
+		// The hash has 4 bits for the average alpha, so it gets a larger delta.
 		$reference = Reference::fromString(Reference::toString(Reference::encode(...Reference::gdPixels($content))));
 		$this->assertSame(Reference::decode($reference)['width'], ThumbHash::decode($hash)['width']);
 		$this->assertSame(Reference::decode($reference)['height'], ThumbHash::decode($hash)['height']);

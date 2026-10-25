@@ -59,7 +59,7 @@ class Images
 	}
 
 	/**
-	 * Encoded image files like the sample images that Kirby creates
+	 * The test images as PNG, JPEG, WebP, palette PNG, and GIF files, and with Imagick as 16-bit, grayscale, and CMYK files
 	 *
 	 * @return array<string, string>
 	 */

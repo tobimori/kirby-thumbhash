@@ -10,7 +10,8 @@ require __DIR__ . '/bootstrap.php';
 $filter = $argv[1] ?? '';
 
 /**
- * Returns the fastest mean times of the calls in microseconds, the rounds alternate between the calls to even out the load of the machine
+ * Returns the best mean time per call of each closure in microseconds. The rounds alternate between the closures to even out
+ * the machine load.
  *
  * @return list<float>
  */
@@ -39,24 +40,23 @@ $alphaHash = Codec::encode(100, 100, $alpha);
 $opaqueImage = ThumbHash::decode($opaqueHash);
 $alphaImage = ThumbHash::decode($alphaHash);
 
-/** @param list<int> $hash */
-function decode_png(array $hash): string
-{
+$decodePng = static function (array $hash): string {
+	/** @var list<int> $hash */
 	['w' => $w, 'h' => $h, 'rgba' => $rgba] = Codec::decode($hash);
 
 	return Codec::pngDataUrl($w, $h, $rgba);
-}
+};
 
 $cases = [
 	'encode opaque' => [static fn () => Reference::encode(100, 75, $photo), static fn () => Codec::encode(100, 75, $photo)],
 	'encode alpha' => [static fn () => Reference::encode(100, 100, $alpha), static fn () => Codec::encode(100, 100, $alpha)],
 	'decode opaque' => [
 		static fn () => Reference::decode($opaqueHash),
-		static fn () => decode_png($opaqueHash)
+		static fn () => $decodePng($opaqueHash)
 	],
 	'decode alpha' => [
 		static fn () => Reference::decode($alphaHash),
-		static fn () => decode_png($alphaHash)
+		static fn () => $decodePng($alphaHash)
 	],
 	'uri opaque' => [static fn () => Reference::uri($opaqueImage, 1.0), static fn () => ThumbHash::uri($opaqueImage, 1.0)],
 	'uri alpha' => [static fn () => Reference::uri($alphaImage, 1.0), static fn () => ThumbHash::uri($alphaImage, 1.0)],

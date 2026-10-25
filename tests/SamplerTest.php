@@ -8,6 +8,7 @@ use Kirby\Cms\Page;
 use Kirby\Filesystem\Asset;
 use Kirby\Filesystem\Dir;
 use Kirby\Filesystem\F;
+use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
@@ -52,7 +53,7 @@ class SamplerTest extends TestCase
 	public function testSample(string $content, string $extension, string $driver, int $width, int $height): void
 	{
 		$asset = self::asset("image.{$extension}", $content);
-		// the Imagick export doesn't convert CMYK
+		// GD gives the expected pixels, because the Imagick pixel export doesn't convert CMYK to RGB
 		[$sourceWidth, $sourceHeight, $source] = Reference::gdPixels($content);
 
 		$sample = Sampler::sample($asset, $driver, $width, $height);
@@ -117,7 +118,10 @@ class SamplerTest extends TestCase
 
 	public function testSampleDoesNotScaleUp(): void
 	{
-		$asset = self::asset('image.png', Images::files()['100x75 opaque png']);
+		$image = imagecreatetruecolor(100, 75);
+		ob_start();
+		imagepng($image);
+		$asset = self::asset('image.png', (string)ob_get_clean());
 
 		$sample = Sampler::sample($asset, GdDriver::class, 200, 150);
 
@@ -145,7 +149,7 @@ class SamplerTest extends TestCase
 	public function testOrientation(string $driver, int $orientation): void
 	{
 		$pixels = Images::create(100, 60, 'photo', 'opaque', 7);
-		// a mark in the top left corner shows a wrong orientation
+		// A mark in the top left corner makes every wrong orientation change the sample
 		foreach (range(0, 29) as $y) {
 			foreach (range(0, 39) as $x) {
 				array_splice($pixels, (($y * 100) + $x) * 4, 3, [255, 0, 0]);
@@ -175,13 +179,9 @@ class SamplerTest extends TestCase
 
 		$sample = static function (string $focus): array {
 			$page = new Page(['slug' => 'focus', 'dirname' => 'focus']);
-			$file = $page->file('image.png');
-			$file = $file?->clone(['content' => ['focus' => $focus, 'uuid' => 'focus']]);
-			if ($file === null) {
-				return [];
-			}
+			$file = $page->file('image.png') ?? throw new LogicException('The test image is missing');
 
-			return Sampler::sample($file, GdDriver::class, 10, 10)[2];
+			return Sampler::sample($file->clone(['content' => ['focus' => $focus, 'uuid' => 'focus']]), GdDriver::class, 10, 10)[2];
 		};
 
 		$this->assertSame([255, 0, 0, 255], array_slice($sample('0% 50%'), 0, 4));
@@ -236,7 +236,7 @@ class SamplerTest extends TestCase
 		$image->setImageCompressionQuality(100);
 		$jpeg = $image->getImageBlob();
 
-		// an APP1 segment with an Exif IFD that only has the orientation tag
+		// A JPEG APP1 segment with Exif data that has only the orientation tag
 		$exif = "Exif\0\0MM\0*\0\0\0\x08" . pack('nnnNnnN', 1, 0x0112, 3, 1, $orientation, 0, 0);
 
 		return "\xFF\xD8\xFF\xE1" . pack('n', strlen($exif) + 2) . $exif . substr($jpeg, 2);

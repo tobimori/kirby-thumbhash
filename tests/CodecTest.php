@@ -2,38 +2,20 @@
 
 namespace tobimori\Tests;
 
-use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\DataProviderExternal;
 use PHPUnit\Framework\TestCase;
 use tobimori\Codec;
 use tobimori\Tests\Reference\Reference;
 
 class CodecTest extends TestCase
 {
-	/**
-	 * @return iterable<string, array{int, int, string, string, int}>
-	 */
-	public static function images(): iterable
-	{
-		yield from Images::cases();
-	}
-
-	/**
-	 * @return iterable<string, array{list<int>}>
-	 */
-	public static function hashes(): iterable
-	{
-		foreach (Hashes::all() as $name => $hash) {
-			yield $name => [$hash];
-		}
-	}
-
-	#[DataProvider('images')]
+	#[DataProviderExternal(Images::class, 'cases')]
 	public function testEncode(int $w, int $h, string $color, string $alpha, int $seed): void
 	{
 		$pixels = Images::create($w, $h, $color, $alpha, $seed);
 		$hash = Reference::encode($w, $h, $pixels);
 
-		// the same floating point operations in the same order give the same DCT terms, any change to the hash is unlikely to show up in the tests
+		// Quantization hides most changes to the floating-point operations, so compare the unquantized DCT terms too
 		$this->assertSame(self::floats(Reference::dct($w, $h, $pixels)), self::floats(Codec::dct($w, $h, $pixels)));
 
 		$this->assertSame($hash, Codec::encode($w, $h, $pixels));
@@ -43,7 +25,7 @@ class CodecTest extends TestCase
 	/**
 	 * @param list<int> $hash
 	 */
-	#[DataProvider('hashes')]
+	#[DataProviderExternal(Hashes::class, 'cases')]
 	public function testDecode(array $hash): void
 	{
 		$expected = Reference::decode($hash);
@@ -60,7 +42,7 @@ class CodecTest extends TestCase
 	/**
 	 * @param list<int> $hash
 	 */
-	#[DataProvider('hashes')]
+	#[DataProviderExternal(Hashes::class, 'cases')]
 	public function testMetadata(array $hash): void
 	{
 		$this->assertSame(self::floats(Reference::averageRgba($hash)), self::floats(Codec::averageRgba($hash)));
@@ -72,7 +54,7 @@ class CodecTest extends TestCase
 	}
 
 	/**
-	 * Casts all numbers to floats, the types of the numbers don't change the hash
+	 * Casts all numbers to floats, so assertSame() ignores int and float differences of equal values
 	 */
 	private static function floats(mixed $value): mixed
 	{

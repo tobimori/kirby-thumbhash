@@ -6,7 +6,7 @@ use Exception;
 use Thumbhash\Thumbhash;
 
 /**
- * Behavior of the released plugin (srwiez/thumbhash 1.6.0 and the plugin drivers), the tests compare the optimized code against it
+ * Expected output for the tests: srwiez/thumbhash 1.6.0, and the GD pixel reading and SVG building of kirby-thumbhash 2.1.1
  */
 class Reference
 {
@@ -128,13 +128,13 @@ class Reference
 	 */
 	public static function decode(array $hash): array
 	{
-		/** @var array{w: int, h: int, rgba: non-empty-list<float|int>} $image */
+		/** @var array{w: float, h: float, rgba: non-empty-list<float|int>} $image */
 		$image = Thumbhash::hashToRGBA($hash);
 
 		/** @var string $uri */
-		$uri = Thumbhash::rgbaToDataURL($image['w'], $image['h'], $image['rgba']);
+		$uri = Thumbhash::rgbaToDataURL((int)$image['w'], (int)$image['h'], $image['rgba']);
 
-		// the released plugin returned the size as floats with integer values
+		// srwiez/thumbhash returns the size as floats, the plugin returns ints
 		return [
 			'uri' => $uri,
 			'width' => (int)$image['w'],
