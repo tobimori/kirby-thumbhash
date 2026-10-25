@@ -50,18 +50,18 @@ class Codec
 
 		$isLandscape = $w > $h;
 		$header24 =
-			(int)round(63 * $l_dc) |
-			((int)round(31.5 + (31.5 * $p_dc)) << 6) |
-			((int)round(31.5 + (31.5 * $q_dc)) << 12) |
-			((int)round(31 * $l_scale) << 18) |
+			self::round(63 * $l_dc) |
+			(self::round(31.5 + (31.5 * $p_dc)) << 6) |
+			(self::round(31.5 + (31.5 * $q_dc)) << 12) |
+			(self::round(31 * $l_scale) << 18) |
 			((int)$hasAlpha << 23);
-		$header16 = ($isLandscape ? $ly : $lx) | ((int)round(63 * $p_scale) << 3) | ((int)round(63 * $q_scale) << 9) | ((int)$isLandscape << 15);
+		$header16 = ($isLandscape ? $ly : $lx) | (self::round(63 * $p_scale) << 3) | (self::round(63 * $q_scale) << 9) | ((int)$isLandscape << 15);
 		$hash = [$header24 & 255, ($header24 >> 8) & 255, $header24 >> 16, $header16 & 255, $header16 >> 8];
 		$ac_start = $hasAlpha ? 6 : 5;
 		$ac_index = 0;
 
 		if ($hasAlpha) {
-			$hash[] = (int)round(15 * $a_dc) | ((int)round(15 * $a_scale) << 4);
+			$hash[] = self::round(15 * $a_dc) | (self::round(15 * $a_scale) << 4);
 		}
 
 		$acList = $hasAlpha ? [$l_ac, $p_ac, $q_ac, $a_ac] : [$l_ac, $p_ac, $q_ac];
@@ -70,11 +70,23 @@ class Codec
 			foreach ($ac as $f) {
 				$hash_key = $ac_start + ($ac_index >> 1);
 				$hash[$hash_key] ??= 0;
-				$hash[$hash_key] |= (int)round(15 * $f) << (($ac_index++ & 1) << 2);
+				$hash[$hash_key] |= self::round(15 * $f) << (($ac_index++ & 1) << 2);
 			}
 		}
 
 		return $hash;
+	}
+
+	/**
+	 * Rounds a non-negative number like Math.round() in JavaScript. Before PHP 8.4, round() rounds 7.4999999999999991 up.
+	 *
+	 * @see https://wiki.php.net/rfc/change_the_edge_case_of_round
+	 */
+	private static function round(float $x): int
+	{
+		$integer = (int)$x;
+
+		return ($x - $integer) >= 0.5 ? $integer + 1 : $integer;
 	}
 
 	/**
