@@ -8,6 +8,13 @@ namespace Kirby\Cms {
 	 * @method float ratio()
 	 * @method \Kirby\Image\Exif exif()
 	 * @method \Kirby\Content\Field focus()
+	 * @method string|null thumbhash(float|array|null $ratio = null, array $options = [])
+	 * @method string|null th(float|array|null $ratio = null, array $options = [])
+	 * @method string|null thumbhashUri(float|array|null $ratio = null, float|null $blurRadius = null, array $options = [])
+	 * @method string|null thUri(float|array|null $ratio = null, float|null $blurRadius = null, array $options = [])
+	 * @method string|null averageColor(string $format = 'hex', float|null $ratio = null)
+	 * @method array{r: int, g: int, b: int, a: float}|null averageColorRgba(float|null $ratio = null)
+	 * @method bool hasTransparency(float|null $ratio = null)
 	 */
 	class File extends ModelWithContent
 	{
@@ -26,6 +33,13 @@ namespace Kirby\Filesystem {
 	 * @method float ratio()
 	 * @method string filename()
 	 * @method \Kirby\Image\Exif exif()
+	 * @method string|null thumbhash(float|array|null $ratio = null, array $options = [])
+	 * @method string|null th(float|array|null $ratio = null, array $options = [])
+	 * @method string|null thumbhashUri(float|array|null $ratio = null, float|null $blurRadius = null, array $options = [])
+	 * @method string|null thUri(float|array|null $ratio = null, float|null $blurRadius = null, array $options = [])
+	 * @method string|null averageColor(string $format = 'hex', float|null $ratio = null)
+	 * @method array{r: int, g: int, b: int, a: float}|null averageColorRgba(float|null $ratio = null)
+	 * @method bool hasTransparency(float|null $ratio = null)
 	 */
 	class Asset
 	{

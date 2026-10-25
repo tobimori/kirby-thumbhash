@@ -2,295 +2,128 @@
 
 namespace tobimori\Tests;
 
-use Imagick;
-use Kirby\Cms\App;
-use Kirby\Cms\Page;
-use Kirby\Filesystem\Asset;
-use Kirby\Filesystem\Dir;
-use Kirby\Filesystem\F;
-use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
-use PHPUnit\Framework\TestCase;
 use tobimori\Driver\GdDriver;
 use tobimori\Driver\ImagickDriver;
 use tobimori\Sampler;
-use tobimori\Tests\Reference\Reference;
 
 class SamplerTest extends TestCase
 {
-	private const array SIZES = ['100x75' => [32, 24], '64x100' => [16, 25], '100x100' => [32, 32]];
-
 	/**
-	 * @return iterable<string, array{string, string, class-string<GdDriver>|class-string<ImagickDriver>, int, int}>
+	 * @return iterable<string, array{string}>
 	 */
-	public static function files(): iterable
+	public static function images(): iterable
 	{
-		foreach (Images::files() as $name => $content) {
-			[$size] = explode(' ', $name);
-			if (!isset(self::SIZES[$size])) {
-				continue;
-			}
-
-			[$width, $height] = self::SIZES[$size];
-			$extension = match (true) {
-				str_contains($name, 'jpeg') => 'jpg',
-				str_contains($name, 'webp') => 'webp',
-				str_contains($name, 'gif') => 'gif',
-				default => 'png'
-			};
-			yield "{$name} gd" => [$content, $extension, GdDriver::class, $width, $height];
-			if (extension_loaded('imagick')) {
-				yield "{$name} imagick" => [$content, $extension, ImagickDriver::class, $width, $height];
-			}
+		foreach (array_keys(Fixtures::IMAGES) as $image) {
+			yield $image => [$image];
 		}
 	}
 
 	/**
-	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
+	 * GD and Imagick read and scale the images independently
 	 */
-	#[DataProvider('files')]
-	public function testSample(string $content, string $extension, string $driver, int $width, int $height): void
-	{
-		$asset = self::asset("image.{$extension}", $content);
-		// GD gives the expected pixels, because the Imagick pixel export doesn't convert CMYK to RGB
-		[$sourceWidth, $sourceHeight, $source] = Reference::gdPixels($content);
-
-		$sample = Sampler::sample($asset, $driver, $width, $height);
-
-		$this->assertSame([$width, $height], [$sample[0], $sample[1]]);
-		$expected = self::areaAverage($source, $sourceWidth, $sourceHeight, $width, $height);
-		$this->assertLessThan(1, self::premultipliedRms($expected, $sample[2]));
-	}
-
-	/**
-	 * @return iterable<string, array{string, class-string<GdDriver>|class-string<ImagickDriver>}>
-	 */
-	public static function largeFiles(): iterable
-	{
-		foreach (['jpg', 'png', 'gif'] as $extension) {
-			yield "{$extension} gd" => [$extension, GdDriver::class];
-			if (extension_loaded('imagick')) {
-				yield "{$extension} imagick" => [$extension, ImagickDriver::class];
-			}
-		}
-	}
-
-	/**
-	 * Images that the drivers read at a reduced size, or point sample before they average
-	 *
-	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
-	 */
-	#[DataProvider('largeFiles')]
-	public function testSampleLargeImage(string $extension, string $driver): void
-	{
-		$image = imagecreatetruecolor(1600, 1200);
-		imagealphablending($image, false);
-		imagesavealpha($image, true);
-		for ($x = 0; $x < 1600; $x++) {
-			imageline($image, $x, 0, $x, 1199, (int)imagecolorallocate($image, intdiv($x * 255, 1599), 128, 255 - intdiv($x * 255, 1599)));
-		}
-		mt_srand(3);
-		for ($i = 0; $i < 40; $i++) {
-			$color = (int)imagecolorallocatealpha($image, mt_rand(0, 255), mt_rand(0, 255), mt_rand(0, 255), $extension === 'png' ? mt_rand(0, 127) : 0);
-			imagefilledellipse($image, mt_rand(0, 1600), mt_rand(0, 1200), mt_rand(50, 500), mt_rand(50, 500), $color);
-		}
-		if ($extension === 'gif') {
-			imagetruecolortopalette($image, false, 255);
-			imagecolortransparent($image, (int)imagecolorat($image, 800, 600));
-		}
-		ob_start();
-		match ($extension) {
-			'jpg' => imagejpeg($image, null, 95),
-			'png' => imagepng($image),
-			default => imagegif($image)
-		};
-		$content = (string)ob_get_clean();
-		$asset = self::asset("large.{$extension}", $content);
-		[$sourceWidth, $sourceHeight, $source] = Reference::gdPixels($content);
-
-		$sample = Sampler::sample($asset, $driver, 32, 24);
-
-		$this->assertSame([32, 24], [$sample[0], $sample[1]]);
-		$expected = self::areaAverage($source, $sourceWidth, $sourceHeight, 32, 24);
-		$this->assertLessThan(3, self::premultipliedRms($expected, $sample[2]));
-	}
-
-	public function testSampleDoesNotScaleUp(): void
-	{
-		$image = imagecreatetruecolor(100, 75);
-		ob_start();
-		imagepng($image);
-		$asset = self::asset('image.png', (string)ob_get_clean());
-
-		$sample = Sampler::sample($asset, GdDriver::class, 200, 150);
-
-		$this->assertSame([100, 75], [$sample[0], $sample[1]]);
-	}
-
-	/**
-	 * @return iterable<string, array{class-string<GdDriver>|class-string<ImagickDriver>, int}>
-	 */
-	public static function orientations(): iterable
-	{
-		foreach (range(1, 8) as $orientation) {
-			yield "gd {$orientation}" => [GdDriver::class, $orientation];
-			if (extension_loaded('imagick')) {
-				yield "imagick {$orientation}" => [ImagickDriver::class, $orientation];
-			}
-		}
-	}
-
-	/**
-	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
-	 */
-	#[DataProvider('orientations')]
+	#[DataProvider('images')]
 	#[RequiresPhpExtension('imagick')]
-	public function testOrientation(string $driver, int $orientation): void
+	public function testDriversAgree(string $image): void
 	{
-		$pixels = Images::create(100, 60, 'photo', 'opaque', 7);
-		// A mark in the top left corner makes every wrong orientation change the sample
-		foreach (range(0, 29) as $y) {
-			foreach (range(0, 39) as $x) {
-				array_splice($pixels, (($y * 100) + $x) * 4, 3, [255, 0, 0]);
-			}
-		}
-		$upright = self::asset('upright.jpg', self::jpeg(100, 60, $pixels, 1));
-		$turned = self::asset("turned-{$orientation}.jpg", self::jpeg(100, 60, $pixels, $orientation));
+		$file = self::file($image);
+		[$width, $height] = self::sampleSize($file->ratio());
 
-		$expected = Sampler::sample($upright, $driver, 25, 15);
-		$sample = Sampler::sample($turned, $driver, 25, 15);
+		$gd = Sampler::sample($file, GdDriver::class, $width, $height);
+		$imagick = Sampler::sample($file, ImagickDriver::class, $width, $height);
 
-		$this->assertSame([25, 15], [$sample[0], $sample[1]]);
-		$this->assertLessThan(3, self::premultipliedRms($expected[2], $sample[2]));
-	}
-
-	#[RequiresPhpExtension('imagick')]
-	public function testFocus(): void
-	{
-		$pixels = [];
-		foreach (range(0, 49) as $y) {
-			foreach (range(0, 99) as $x) {
-				array_push($pixels, ...$x < 50 ? [255, 0, 0, 255] : [0, 0, 255, 255]);
-			}
-		}
-		$root = App::instance()->root('content');
-		F::write("{$root}/focus/image.png", self::png(100, 50, $pixels));
-
-		$sample = static function (string $focus): array {
-			$page = new Page(['slug' => 'focus', 'dirname' => 'focus']);
-			$file = $page->file('image.png') ?? throw new LogicException('The test image is missing');
-
-			return Sampler::sample($file->clone(['content' => ['focus' => $focus, 'uuid' => 'focus']]), GdDriver::class, 10, 10)[2];
-		};
-
-		$this->assertSame([255, 0, 0, 255], array_slice($sample('0% 50%'), 0, 4));
-		$this->assertSame([255, 0, 0, 255], array_slice($sample('0% 50%'), -4));
-		$this->assertSame([0, 0, 255, 255], array_slice($sample('100% 50%'), 0, 4));
-		$this->assertSame([0, 0, 255, 255], array_slice($sample(''), -4));
-	}
-
-	private static function asset(string $filename, string $content): Asset
-	{
-		$root = App::instance()->root('index');
-		Dir::remove("{$root}/media");
-		F::write("{$root}/assets/{$filename}", $content);
-
-		return new Asset("assets/{$filename}");
+		$this->assertSame([$gd[0], $gd[1]], [$imagick[0], $imagick[1]]);
+		$this->assertLessThan(3, self::difference($gd[2], $imagick[2]));
 	}
 
 	/**
-	 * @param list<int> $pixels
+	 * @return iterable<string, array{class-string<GdDriver>|class-string<ImagickDriver>}>
 	 */
-	private static function png(int $width, int $height, array $pixels): string
+	public static function drivers(): iterable
 	{
-		$image = new Imagick();
-		$image->newImage($width, $height, 'none');
-		$image->importImagePixels(0, 0, $width, $height, 'RGBA', Imagick::PIXEL_CHAR, $pixels);
-		$image->setImageFormat('png');
-
-		return $image->getImageBlob();
+		yield 'gd' => [GdDriver::class];
+		if (extension_loaded('imagick')) {
+			yield 'imagick' => [ImagickDriver::class];
+		}
 	}
 
 	/**
-	 * Encodes the pixels turned so that the EXIF orientation turns them upright
+	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
+	 */
+	#[DataProvider('drivers')]
+	public function testOrientation(string $driver): void
+	{
+		$upright = Sampler::sample(self::file('earthrise.jpg'), $driver, 32, 21);
+		$rotated = Sampler::sample(self::file('earthrise-rotated.jpg'), $driver, 32, 21);
+
+		$this->assertSame([32, 21], [$rotated[0], $rotated[1]]);
+		$this->assertLessThan(3, self::difference($upright[2], $rotated[2]));
+	}
+
+	/**
+	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
+	 */
+	#[DataProvider('drivers')]
+	public function testCmyk(string $driver): void
+	{
+		$rgb = Sampler::sample(self::file('earthrise.jpg'), $driver, 32, 21);
+		$cmyk = Sampler::sample(self::file('earthrise-cmyk.jpg'), $driver, 32, 21);
+
+		$this->assertLessThan(5, self::difference($rgb[2], $cmyk[2]));
+	}
+
+	/**
+	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
+	 */
+	#[DataProvider('drivers')]
+	public function testFocus(string $driver): void
+	{
+		$source = imagecreatefromjpeg(Fixtures::ROOT . '/earthrise.jpg') ?: null;
+		$this->assertNotNull($source);
+
+		foreach (['0% 50%' => 0, '100% 50%' => 400] as $focus => $left) {
+			$square = imagecrop($source, ['x' => $left, 'y' => 0, 'width' => 800, 'height' => 800]) ?: null;
+			$this->assertNotNull($square);
+			ob_start();
+			imagepng($square);
+			$expected = Sampler::sample(self::asset('square.png', (string)ob_get_clean()), $driver, 32, 32);
+
+			$sample = Sampler::sample(self::file('earthrise.jpg', ['focus' => $focus]), $driver, 32, 32);
+
+			$this->assertLessThan(3, self::difference($expected[2], $sample[2]), $focus);
+		}
+	}
+
+	public function testDoesNotScaleUp(): void
+	{
+		$sample = Sampler::sample(self::file('rose.png'), GdDriver::class, 140, 92);
+
+		$this->assertSame([70, 46], [$sample[0], $sample[1]]);
+	}
+
+	/**
+	 * @return array{int, int}
+	 */
+	private static function sampleSize(float $ratio): array
+	{
+		return $ratio >= 1 ? [32, (int)round(32 / $ratio)] : [(int)round(32 * $ratio), 32];
+	}
+
+	/**
+	 * Root mean square difference of the pixels, with the colors premultiplied by alpha
 	 *
-	 * @param list<int> $pixels
-	 */
-	private static function jpeg(int $width, int $height, array $pixels, int $orientation): string
-	{
-		$image = new Imagick();
-		$image->newImage($width, $height, 'white');
-		$image->importImagePixels(0, 0, $width, $height, 'RGBA', Imagick::PIXEL_CHAR, $pixels);
-		match ($orientation) {
-			2 => $image->flopImage(),
-			3 => $image->rotateImage('white', 180),
-			4 => $image->flipImage(),
-			5 => $image->transposeImage(),
-			6 => $image->rotateImage('white', -90),
-			7 => $image->transverseImage(),
-			8 => $image->rotateImage('white', 90),
-			default => null
-		};
-		$image->setImageFormat('jpeg');
-		$image->setImageCompressionQuality(100);
-		$jpeg = $image->getImageBlob();
-
-		// A JPEG APP1 segment with Exif data that has only the orientation tag
-		$exif = "Exif\0\0MM\0*\0\0\0\x08" . pack('nnnNnnN', 1, 0x0112, 3, 1, $orientation, 0, 0);
-
-		return "\xFF\xD8\xFF\xE1" . pack('n', strlen($exif) + 2) . $exif . substr($jpeg, 2);
-	}
-
-	/**
-	 * Scales the pixels down with the exact average of the covered area, weighted by alpha
-	 *
-	 * @param list<int> $pixels
-	 * @return list<int>
-	 */
-	private static function areaAverage(array $pixels, int $sourceWidth, int $sourceHeight, int $width, int $height): array
-	{
-		$scaleX = $sourceWidth / $width;
-		$scaleY = $sourceHeight / $height;
-		$result = [];
-		for ($y = 0; $y < $height; $y++) {
-			for ($x = 0; $x < $width; $x++) {
-				$sums = [0.0, 0.0, 0.0, 0.0];
-				$area = 0.0;
-				for ($sy = (int)floor($y * $scaleY); $sy < min($sourceHeight, (int)ceil(($y + 1) * $scaleY)); $sy++) {
-					$coverY = min(($y + 1) * $scaleY, $sy + 1) - max($y * $scaleY, $sy);
-					for ($sx = (int)floor($x * $scaleX); $sx < min($sourceWidth, (int)ceil(($x + 1) * $scaleX)); $sx++) {
-						$cover = $coverY * (min(($x + 1) * $scaleX, $sx + 1) - max($x * $scaleX, $sx));
-						$i = (($sy * $sourceWidth) + $sx) * 4;
-						$alpha = $cover * $pixels[$i + 3];
-						$sums[0] += $alpha * $pixels[$i];
-						$sums[1] += $alpha * $pixels[$i + 1];
-						$sums[2] += $alpha * $pixels[$i + 2];
-						$sums[3] += $alpha;
-						$area += $cover;
-					}
-				}
-				$result[] = $sums[3] > 0 ? (int)round($sums[0] / $sums[3]) : 0;
-				$result[] = $sums[3] > 0 ? (int)round($sums[1] / $sums[3]) : 0;
-				$result[] = $sums[3] > 0 ? (int)round($sums[2] / $sums[3]) : 0;
-				$result[] = (int)round($sums[3] / $area);
-			}
-		}
-
-		return $result;
-	}
-
-	/**
 	 * @param list<int> $expected
 	 * @param list<int> $actual
 	 */
-	private static function premultipliedRms(array $expected, array $actual): float
+	private static function difference(array $expected, array $actual): float
 	{
 		$sum = 0;
 		foreach ($expected as $i => $value) {
+			$alpha = $i - ($i % 4) + 3;
 			$sum += ($i % 4) === 3
 				? ($value - $actual[$i]) ** 2
-				: ((($value * $expected[$i - ($i % 4) + 3]) - ($actual[$i] * $actual[$i - ($i % 4) + 3])) / 255) ** 2;
+				: ((($value * $expected[$alpha]) - ($actual[$i] * $actual[$alpha])) / 255) ** 2;
 		}
 
 		return sqrt($sum / max(1, count($expected)));

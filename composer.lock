@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f1326bf9998367e4baf00494d0f669eb",
+    "content-hash": "a222a1d899a1cd234368f77f59464f80",
     "packages": [
         {
             "name": "getkirby/composer-installer",
@@ -2591,61 +2591,6 @@
                 }
             ],
             "time": "2026-10-04T05:50:08+00:00"
-        },
-        {
-            "name": "srwiez/thumbhash",
-            "version": "v1.6.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/SRWieZ/thumbhash.git",
-                "reference": "ef50e204c4f3adbea23e1ab8b70fd677569a3824"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/SRWieZ/thumbhash/zipball/ef50e204c4f3adbea23e1ab8b70fd677569a3824",
-                "reference": "ef50e204c4f3adbea23e1ab8b70fd677569a3824",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^7.3 || ^8.0"
-            },
-            "require-dev": {
-                "ext-gd": "*",
-                "ext-imagick": "*",
-                "pestphp/pest": "^1.0|^2.0|^3.0|^4.0",
-                "phpbench/phpbench": "^1.2"
-            },
-            "type": "library",
-            "autoload": {
-                "files": [
-                    "src/helpers.php"
-                ],
-                "psr-4": {
-                    "Thumbhash\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Eser DENIZ",
-                    "email": "srwiez@gmail.com"
-                }
-            ],
-            "description": "A brief description of your package",
-            "support": {
-                "issues": "https://github.com/SRWieZ/thumbhash/issues",
-                "source": "https://github.com/SRWieZ/thumbhash/tree/v1.6.0"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/SRWieZ",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-10-20T12:16:03+00:00"
         },
         {
             "name": "staabm/side-effects-detector",

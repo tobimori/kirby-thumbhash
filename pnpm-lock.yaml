@@ -169,6 +169,9 @@ importers:
       portless:
         specifier: ^0.15.8
         version: 0.15.11
+      thumbhash:
+        specifier: ^0.1.1
+        version: 0.1.1
 
 packages:
 
@@ -178,6 +181,11 @@ packages:
     os: [darwin, linux, win32]
     hasBin: true
 
+  thumbhash@0.1.1:
+    resolution: {integrity: sha512-kH5pKeIIBPQXAOni2AiY/Cu/NKdkFREdpH+TLdM0g6WA7RriCv0kPLgP731ady67MhTAqrVG/4mnEeibVuCJcg==}
+
 snapshots:
 
   portless@0.15.11: {}
+
+  thumbhash@0.1.1: {}

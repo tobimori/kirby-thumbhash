@@ -92,19 +92,19 @@ class Codec
 	/**
 	 * Computes the discrete cosine transform (DCT) terms of the luminance, yellow-blue, red-green, and alpha channels
 	 *
-	 * @internal
 	 * @param list<int> $rgba pixels row by row, w * h * 4 values
 	 * @return array{lx: int, ly: int, l: array{float, list<float>, float}, p: array{float, list<float>, float}, q: array{float, list<float>, float}, a: array{float, list<float>, float}|null}
 	 */
-	public static function dct(int $w, int $h, array $rgba): array
+	private static function dct(int $w, int $h, array $rgba): array
 	{
 		// Encoding an image larger than 100x100 is slow with no benefit
 		if ($w > 100 || $h > 100) {
 			throw new Exception("{$w}x{$h} doesn't fit in 100x100");
 		}
 
-		// The floating-point operations and their order match srwiez/thumbhash 1.6.0, so the hashes are bit-identical to it.
-		// Lookup tables hold the per-pixel divisions, and multiplications by cos(0) = 1 are left out.
+		// A different order of the floating-point operations can change the hashes. tests/fixtures/expected.json has the output
+		// of the original JavaScript implementation. Lookup tables hold the per-pixel divisions, and multiplications by
+		// cos(0) = 1 are left out.
 		$alphas = array_map(static fn (int $alpha): float => $alpha / 255, range(0, 255));
 		$weights = array_map(static fn (float $alpha): float => $alpha / 255, $alphas);
 
@@ -425,8 +425,7 @@ class Codec
 		$w = (int)round($ratio > 1 ? 32 : 32 * $ratio);
 		$h = (int)round($ratio > 1 ? 32 / $ratio : 32);
 
-		// The floating-point operations and their order match srwiez/thumbhash 1.6.0, so the pixels are bit-identical to it.
-		// Per column, columnTerms() adds the DC term and the terms of row 0 (vertical cosine cos(0) * 2 = 2), and puts each
+		// A different order of the floating-point operations can change the pixels. Per column, columnTerms() adds the DC term and the terms of row 0 (vertical cosine cos(0) * 2 = 2), and puts each
 		// further term times its horizontal cosine in a fixed slot, so the pixel loop needs no inner loop. Empty slots hold
 		// 0.0. Luminance with at most 5 x 5 terms uses the 5 x 5 layout, with at most 5 rows the last two rows of the
 		// 7 x 7 layout are empty.

@@ -6,7 +6,8 @@
     "playground:portless": "portless run --name thumbhash pnpm playground"
   },
   "devDependencies": {
-    "portless": "^0.15.8"
+    "portless": "^0.15.8",
+    "thumbhash": "^0.1.1"
   },
   "packageManager": "pnpm@12.11.2"
 }
