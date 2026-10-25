@@ -16,10 +16,14 @@
 			"tobimori\\": "classes/"
 		}
 	},
+	"autoload-dev": {
+		"psr-4": {
+			"tobimori\\Tests\\": "tests/"
+		}
+	},
 	"require": {
 		"php": ">=8.3.0",
 		"getkirby/composer-installer": "^1.2",
-		"srwiez/thumbhash": "^1.1",
 		"ext-gd": "*"
 	},
 	"suggest": {
@@ -27,7 +31,9 @@
 	},
 	"require-dev": {
 		"carthage-software/mago": "^1.59.0",
-		"getkirby/cms": "^5.6.1"
+		"getkirby/cms": "^5.6.1",
+		"phpunit/phpunit": "^12.0",
+		"srwiez/thumbhash": "1.6.0"
 	},
 	"scripts": {
 		"analyze": "mago analyze",
@@ -38,7 +44,8 @@
 		],
 		"fmt": "mago fmt",
 		"fmt:check": "mago fmt --check",
-		"lint": "mago lint"
+		"lint": "mago lint",
+		"test": "phpunit"
 	},
 	"config": {
 		"optimize-autoloader": true,

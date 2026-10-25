@@ -7,7 +7,6 @@ use Kirby\Cms\File;
 use Kirby\Cms\FileVersion;
 use Kirby\Exception\Exception;
 use Kirby\Filesystem\Asset;
-use Thumbhash\Thumbhash as THEncoder;
 use tobimori\Driver\GdDriver;
 use tobimori\Driver\ImagickDriver;
 
@@ -142,9 +141,7 @@ class ThumbHash
 			return null;
 		}
 
-		/** @var list<int> $hashArray */
-		$hashArray = THEncoder::RGBAToHash($width, $height, $pixels);
-		$thumbhash = THEncoder::convertHashToString($hashArray);
+		$thumbhash = Codec::toString(Codec::encode($width, $height, $pixels));
 
 		$cacheData[$ratioKey] = $thumbhash;
 		$cache->set($id, $cacheData);
@@ -163,8 +160,8 @@ class ThumbHash
 		$kirby = App::instance();
 		$cache = $kirby->cache('tobimori.thumbhash.decode');
 
-		$id = is_array($thumbhash) ? THEncoder::convertHashToString($thumbhash) : $thumbhash;
-		$thumbhash = is_string($thumbhash) ? THEncoder::convertStringToHash($thumbhash) : $thumbhash;
+		$id = is_array($thumbhash) ? Codec::toString($thumbhash) : $thumbhash;
+		$thumbhash = is_string($thumbhash) ? Codec::fromString($thumbhash) : $thumbhash;
 
 		/** @var array{uri: string, width: int, height: int, transparent: bool}|null $cacheData */
 		$cacheData = $cache->get($id);
@@ -172,13 +169,11 @@ class ThumbHash
 			return $cacheData;
 		}
 
-		/** @var array{w: int, h: int, rgba: non-empty-list<int>} $image */
-		$image = THEncoder::hashToRGBA($thumbhash);
+		$image = Codec::decode($thumbhash);
 		// check if any alpha value in RGBA array is less than 255
 		$transparent = min(array_column(array_chunk($image['rgba'], 4), 3)) < 255;
 
-		/** @var string $dataUri */
-		$dataUri = THEncoder::rgbaToDataURL($image['w'], $image['h'], $image['rgba']);
+		$dataUri = Codec::pngDataUrl($image['w'], $image['h'], $image['rgba']);
 
 		$data = [
 			'uri' => $dataUri,
@@ -204,10 +199,7 @@ class ThumbHash
 			return null;
 		}
 
-		$thumbhash = THEncoder::convertStringToHash($hash);
-		$encoder = new THEncoder();
-		/** @var array{r: float, g: float, b: float, a: float} $rgba */
-		$rgba = $encoder->toAverageRGBA($thumbhash);
+		$rgba = Codec::averageRgba(Codec::fromString($hash));
 
 		return [
 			'r' => (int)round($rgba['r'] * 255),

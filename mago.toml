@@ -3,7 +3,7 @@ version = "1"
 php-version = "8.3"
 
 [source]
-paths = ["index.php", "classes"]
+paths = ["index.php", "classes", "tests"]
 includes = ["vendor", ".repos/vendor", "stubs"]
 
 [source.glob]

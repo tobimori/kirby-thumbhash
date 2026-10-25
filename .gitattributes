@@ -8,6 +8,8 @@
 composer.lock export-ignore
 mago.toml export-ignore
 stubs/ export-ignore
+tests/ export-ignore
+phpunit.xml.dist export-ignore
 scripts/ export-ignore
 mise.toml export-ignore
 package.json export-ignore

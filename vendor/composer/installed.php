@@ -19,15 +19,6 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
-        'srwiez/thumbhash' => array(
-            'pretty_version' => 'v1.6.0',
-            'version' => '1.6.0.0',
-            'reference' => 'ef50e204c4f3adbea23e1ab8b70fd677569a3824',
-            'type' => 'library',
-            'install_path' => __DIR__ . '/../srwiez/thumbhash',
-            'aliases' => array(),
-            'dev_requirement' => false,
-        ),
         'tobimori/kirby-thumbhash' => array(
             'pretty_version' => '2.1.1',
             'version' => '2.1.1.0',
