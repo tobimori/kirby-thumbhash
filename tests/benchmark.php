@@ -42,7 +42,13 @@ $alphaHash = Codec::encode(100, 100, $alpha);
 $opaqueImage = ThumbHash::decode($opaqueHash);
 $alphaImage = ThumbHash::decode($alphaHash);
 
-$png = static fn (array $image) => Codec::pngDataUrl($image['w'], $image['h'], $image['rgba']);
+/** @param list<int> $hash */
+function decode_png(array $hash): string
+{
+	['w' => $w, 'h' => $h, 'rgba' => $rgba] = Codec::decode($hash);
+
+	return Codec::pngDataUrl($w, $h, $rgba);
+}
 
 $cases = [
 	'gd jpeg' => [static fn () => Reference::gdPixels($files['100x75 opaque jpeg']), static fn () => GdDriver::extractPixels($files['100x75 opaque jpeg'])],
@@ -58,8 +64,14 @@ $cases = [
 	],
 	'encode opaque' => [static fn () => Reference::encode(100, 75, $photo), static fn () => Codec::encode(100, 75, $photo)],
 	'encode alpha' => [static fn () => Reference::encode(100, 100, $alpha), static fn () => Codec::encode(100, 100, $alpha)],
-	'decode opaque' => [static fn () => Reference::decode($opaqueHash), static fn () => $png(Codec::decode($opaqueHash))],
-	'decode alpha' => [static fn () => Reference::decode($alphaHash), static fn () => $png(Codec::decode($alphaHash))],
+	'decode opaque' => [
+		static fn () => Reference::decode($opaqueHash),
+		static fn () => decode_png($opaqueHash)
+	],
+	'decode alpha' => [
+		static fn () => Reference::decode($alphaHash),
+		static fn () => decode_png($alphaHash)
+	],
 	'uri opaque' => [static fn () => Reference::uri($opaqueImage, 1.0), static fn () => ThumbHash::uri($opaqueImage, 1.0)],
 	'uri alpha' => [static fn () => Reference::uri($alphaImage, 1.0), static fn () => ThumbHash::uri($alphaImage, 1.0)],
 	'average color' => [
