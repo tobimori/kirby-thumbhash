@@ -41,4 +41,14 @@ class ThumbHashTest extends TestCase
 		}
 		$this->assertSame(Reference::uri($image, 1.0), ThumbHash::uri($image));
 	}
+
+	public function testUriWithOtherData(): void
+	{
+		foreach (["data:image/svg+xml,<svg> <g>\n\t</g>  </svg>", 'https://example.com/a b%20c?d=e&f=g#h', "\u{1F600} ä ", ''] as $uri) {
+			foreach ([true, false] as $transparent) {
+				$image = ['uri' => $uri, 'width' => 32, 'height' => 17, 'transparent' => $transparent];
+				$this->assertSame(Reference::uri($image, 1.5), ThumbHash::uri($image, 1.5));
+			}
+		}
+	}
 }

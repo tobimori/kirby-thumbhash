@@ -248,61 +248,41 @@ class ThumbHash
 	}
 
 	/**
-	 * Returns an optimized URI-encoded string of an SVG for using in a src attribute.
-	 * Based on https://github.com/johannschopplich/kirby-blurry-placeholder/blob/main/BlurryPlaceholder.php#L65
-	 */
-	private static function svgToUri(string $data): string
-	{
-		// Optimizes the data URI length by deleting line breaks and
-		// removing unnecessary spaces
-		$data = preg_replace(['/\s+/', '/> </'], [' ', '><'], $data) ?? $data;
-
-		$data = rawurlencode($data);
-
-		// Back-decode certain characters to improve compression
-		// except '%20' to be compliant with W3C guidelines
-		$data = str_replace(
-			['%2F', '%3A', '%3D'],
-			['/', ':', '='],
-			$data
-		);
-
-		return "data:image/svg+xml;charset=utf-8,{$data}";
-	}
-
-	/**
-	 * Applies SVG filter and base64-encoding to binary image.
-	 * Based on https://github.com/johannschopplich/kirby-blurry-placeholder/blob/main/BlurryPlaceholder.php#L10
+	 * Returns the image with a blur filter as a URI-encoded SVG, the SVG wraps the blurred image to avoid rasterizing the filter.
+	 * Based on https://github.com/johannschopplich/kirby-blurry-placeholder/blob/main/BlurryPlaceholder.php
 	 *
 	 * @param array{uri: string, width: int, height: int, transparent: bool} $image
 	 */
-	private static function svgFilter(array $image, float $blurRadius): string
+	private static function svgUri(array $image, float $blurRadius): string
 	{
-		$svgHeight = number_format($image['height'], 2, '.', '');
-		$svgWidth = number_format($image['width'], 2, '.', '');
-
-		// Wrap the blurred image in a SVG to avoid rasterizing the filter
-		$alphaFilter = '';
+		$width = number_format($image['width'], 2, '.', '');
+		$height = number_format($image['height'], 2, '.', '');
 
 		// If the image doesn't include an alpha channel itself, apply an additional filter
 		// to remove the alpha channel from the blur at the edges
-		if (!$image['transparent']) {
-			$alphaFilter = <<<EOD
-				<feComponentTransfer>
-				    <feFuncA type="discrete" tableValues="1 1"></feFuncA>
-				</feComponentTransfer>
-				EOD;
-		}
-		// Wrap the blurred image in a SVG to avoid rasterizing the filter
-		return <<<EOD
-			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {$svgWidth} {$svgHeight}">
-			  <filter id="b" color-interpolation-filters="sRGB">
-			    <feGaussianBlur stdDeviation="{$blurRadius}"></feGaussianBlur>
-			    {$alphaFilter}
-			  </filter>
-			  <image filter="url(#b)" x="0" y="0" width="100%" height="100%" href="{$image['uri']}"></image>
-			</svg>
-			EOD;
+		$alphaFilter = $image['transparent'] ? '' : '<feComponentTransfer><feFuncA type="discrete" tableValues="1 1"></feFuncA></feComponentTransfer>';
+
+		$svg = self::encodeUri(
+			"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {$width} {$height}\"><filter id=\"b\" color-interpolation-filters=\"sRGB\">" .
+				"<feGaussianBlur stdDeviation=\"{$blurRadius}\"></feGaussianBlur>{$alphaFilter}</filter>" .
+				'<image filter="url(#b)" x="0" y="0" width="100%" height="100%" href="'
+		);
+
+		// Base64 data URIs only have three characters to encode
+		$uri = $image['uri'];
+		$uri = strspn($uri, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=:;,') === strlen($uri)
+			? str_replace(['+', ';', ','], ['%2B', '%3B', '%2C'], $uri)
+			: self::encodeUri(preg_replace(['/\s+/', '/> </'], [' ', '><'], $uri) ?? $uri);
+
+		return "data:image/svg+xml;charset=utf-8,{$svg}{$uri}%22%3E%3C/image%3E%3C/svg%3E";
+	}
+
+	/**
+	 * URI-encodes a string, '/', ':', and '=' stay as they are to improve compression
+	 */
+	private static function encodeUri(string $data): string
+	{
+		return str_replace(['%2F', '%3A', '%3D'], ['/', ':', '='], rawurlencode($data));
 	}
 
 	/**
@@ -327,8 +307,7 @@ class ThumbHash
 			return $image['uri'];
 		}
 
-		$svg = self::svgFilter($image, $blurRadius);
-		return self::svgToUri($svg);
+		return self::svgUri($image, $blurRadius);
 	}
 
 	private static function toFloat(mixed $value): float|null
