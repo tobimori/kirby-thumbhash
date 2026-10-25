@@ -6,18 +6,10 @@ namespace Composer\Autoload;
 
 class ComposerStaticInitdffd8c9e0a563d9c7e328275c53882db
 {
-    public static $files = array (
-        '48498cdce62fec683758e9af05e8fa6c' => __DIR__ . '/..' . '/srwiez/thumbhash/src/helpers.php',
-    );
-
     public static $prefixLengthsPsr4 = array (
         't' =>
         array (
             'tobimori\\' => 9,
-        ),
-        'T' =>
-        array (
-            'Thumbhash\\' => 10,
         ),
         'K' =>
         array (
@@ -29,10 +21,6 @@ class ComposerStaticInitdffd8c9e0a563d9c7e328275c53882db
         'tobimori\\' =>
         array (
             0 => __DIR__ . '/../..' . '/classes',
-        ),
-        'Thumbhash\\' =>
-        array (
-            0 => __DIR__ . '/..' . '/srwiez/thumbhash/src',
         ),
         'Kirby\\' =>
         array (
@@ -46,10 +34,11 @@ class ComposerStaticInitdffd8c9e0a563d9c7e328275c53882db
         'Kirby\\ComposerInstaller\\Installer' => __DIR__ . '/..' . '/getkirby/composer-installer/src/ComposerInstaller/Installer.php',
         'Kirby\\ComposerInstaller\\Plugin' => __DIR__ . '/..' . '/getkirby/composer-installer/src/ComposerInstaller/Plugin.php',
         'Kirby\\ComposerInstaller\\PluginInstaller' => __DIR__ . '/..' . '/getkirby/composer-installer/src/ComposerInstaller/PluginInstaller.php',
-        'Thumbhash\\Thumbhash' => __DIR__ . '/..' . '/srwiez/thumbhash/src/Thumbhash.php',
+        'tobimori\\Codec' => __DIR__ . '/../..' . '/classes/Codec.php',
         'tobimori\\Driver\\GdDriver' => __DIR__ . '/../..' . '/classes/Driver/GdDriver.php',
         'tobimori\\Driver\\ImageDriver' => __DIR__ . '/../..' . '/classes/Driver/ImageDriver.php',
         'tobimori\\Driver\\ImagickDriver' => __DIR__ . '/../..' . '/classes/Driver/ImagickDriver.php',
+        'tobimori\\Sampler' => __DIR__ . '/../..' . '/classes/Sampler.php',
         'tobimori\\ThumbHash' => __DIR__ . '/../..' . '/classes/ThumbHash.php',
     );
 

@@ -8,9 +8,14 @@
 composer.lock export-ignore
 mago.toml export-ignore
 stubs/ export-ignore
+tests/ export-ignore
+phpunit.xml.dist export-ignore
 scripts/ export-ignore
 mise.toml export-ignore
 package.json export-ignore
 pnpm-lock.yaml export-ignore
 t3.json export-ignore
 AGENTS.md export-ignore
+
+# Generated test fixtures
+tests/fixtures/codec.json linguist-generated

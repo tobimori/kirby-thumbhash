@@ -9,8 +9,6 @@ A demo and more information can be found on the [website](https://evanw.github.i
 
 This plugin adds ThumbHash support to Kirby, allowing you to implement UX improvements such as progressive image loading or content-aware spoiler images like Mastodon.
 
-Under the hood, the heavy work gets done by a PHP implementation of ThumbHash by [SRWieZ](https://github.com/SRWieZ): [SRWieZ/thumbhash](https://github.com/SRWieZ/thumbhash)
-
 ## Get started
 
 [Read the documentation](https://plugins.andkindness.com/thumbhash/docs/get-started) to get started with Kirby ThumbHash.

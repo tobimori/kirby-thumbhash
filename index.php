@@ -10,14 +10,14 @@ use tobimori\ThumbHash;
 
 $methods = [
 	/** @kql-allowed */
-	'thumbhash' => function (float|array|null $ratio = null, array $options = []) {
+	'thumbhash' => function (float|null $ratio = null) {
 		/** @var Asset|File $this */
-		return ThumbHash::encode($this, $ratio, $options);
+		return ThumbHash::encode($this, $ratio);
 	},
 	/** @kql-allowed */
-	'thumbhashUri' => function (float|array|null $ratio = null, float|null $blurRadius = null, array $options = []) {
+	'thumbhashUri' => function (float|null $ratio = null, float|null $blurRadius = null) {
 		/** @var Asset|File $this */
-		return ThumbHash::thumb($this, $ratio, $blurRadius, $options);
+		return ThumbHash::thumb($this, $ratio, $blurRadius);
 	},
 	/** @kql-allowed */
 	'averageColor' => function (string $format = 'hex', float|null $ratio = null) {
@@ -44,9 +44,9 @@ App::plugin('tobimori/thumbhash', [
 	'options' => [
 		'cache.encode' => true,
 		'cache.decode' => true,
-		'engine' => 'gd', // Image processing driver: 'gd' or 'imagick'
-		'blurRadius' => 1, // Blur radius, larger values are smoother, but less accurate
-		'sampleMaxSize' => 100 // Max width or height for smaller image that gets encoded (Memory constraints)
+		'engine' => null, // Image processing driver: 'gd' or 'imagick', null uses Imagick if available
+		'blurRadius' => 1, // SVG blur radius, 0 returns the PNG data URI
+		'sampleMaxSize' => 32 // Max width or height of the sample image that gets encoded, at most 100
 	],
 	'hooks' => [
 		'file.update:before' => fn (File $file) => ThumbHash::clearCache($file),

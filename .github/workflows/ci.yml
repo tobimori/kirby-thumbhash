@@ -31,7 +31,7 @@ jobs:
         run: vendor/bin/mago lint
 
   static-analysis:
-    name: static analysis (PHP ${{ matrix.php }})
+    name: static analysis and tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
 
     strategy:
@@ -47,6 +47,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          extensions: gd, imagick
           coverage: none
           tools: composer
 
@@ -55,3 +56,7 @@ jobs:
 
       - name: run mago analyze
         run: vendor/bin/mago --php-version=${{ matrix.php }} analyze
+
+      - name: run tests
+        if: success() || failure()
+        run: vendor/bin/phpunit
