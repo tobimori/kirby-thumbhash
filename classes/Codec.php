@@ -417,7 +417,8 @@ class Codec
 		// The arithmetic matches the reference implementation operation by operation, so the pixels are the same. The
 		// factors multiplied with the horizontal cosines and the sums of the first row of terms (cos(0) * 2 = 2) only
 		// depend on x. The terms of each further row of the factors get fixed slots of a 7x7 or 5x5 layout, an empty
-		// slot adds a 0. Images with alpha have 5x5 luminance factors at most.
+		// slot adds a 0. Images with alpha have 5x5 luminance factors at most, and with 5 rows of factors at most the last
+		// two rows of the 7x7 layout are empty.
 		$l_small = $lx <= 5 && $ly <= 5;
 		$l_layout = $l_small ? [1 => 0, 4, 7, 9, 10] : [1 => 0, 6, 11, 15, 18, 20, 21];
 		$l_x = [];
@@ -462,6 +463,27 @@ class Codec
 						($t[7] * $fy3) +
 						($t[8] * $fy3) +
 						($t[9] * $fy4);
+				} elseif ($ly <= 5) {
+					$l =
+						$l_s[$x] +
+						($t[0] * $fy1) +
+						($t[1] * $fy1) +
+						($t[2] * $fy1) +
+						($t[3] * $fy1) +
+						($t[4] * $fy1) +
+						($t[5] * $fy1) +
+						($t[6] * $fy2) +
+						($t[7] * $fy2) +
+						($t[8] * $fy2) +
+						($t[9] * $fy2) +
+						($t[10] * $fy2) +
+						($t[11] * $fy3) +
+						($t[12] * $fy3) +
+						($t[13] * $fy3) +
+						($t[14] * $fy3) +
+						($t[15] * $fy4) +
+						($t[16] * $fy4) +
+						($t[17] * $fy4);
 				} else {
 					$l =
 						$l_s[$x] +
