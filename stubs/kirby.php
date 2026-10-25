@@ -46,5 +46,7 @@ namespace Kirby\Filesystem {
 		use IsFile;
 		use \Kirby\Cms\FileModifications;
 		use \Kirby\Cms\HasMethods;
+
+		public function __construct(string $path) {}
 	}
 }
