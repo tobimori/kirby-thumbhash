@@ -10,6 +10,7 @@ use function array_map;
 use function base64_decode;
 use function base64_encode;
 use function cos;
+use function count;
 use function hash;
 use function implode;
 use function max;
@@ -415,7 +416,10 @@ class Codec
 
 		// The arithmetic matches the reference implementation operation by operation, so the pixels are the same. The
 		// factors multiplied with the horizontal cosines and the sums of the first row of terms (cos(0) * 2 = 2) only
-		// depend on x. The terms of each further row of the factors get fixed slots, an empty slot adds a 0.
+		// depend on x. The terms of each further row of the factors get fixed slots of a 7x7 or 5x5 layout, an empty
+		// slot adds a 0. Images with alpha have 5x5 luminance factors at most.
+		$l_small = $lx <= 5 && $ly <= 5;
+		$l_layout = $l_small ? [1 => 0, 4, 7, 9, 10] : [1 => 0, 6, 11, 15, 18, 20, 21];
 		$l_x = [];
 		$l_s = [];
 		$a_x = [];
@@ -426,29 +430,8 @@ class Codec
 		for ($x = 0; $x < $w; $x++) {
 			$fx = array_map(static fn (int $cx): float => cos((M_PI / $w) * ($x + 0.5) * $cx), range(0, 6));
 
-			$l = $l_dc;
-			$slots = array_fill(0, 21, 0.0);
-			foreach ($l_ac as [$cx, $cy, $ac]) {
-				if ($cy === 0) {
-					$l += $ac * $fx[$cx] * 2.0;
-				} else {
-					$slots[[1 => 0, 6, 11, 15, 18, 20][$cy] + $cx] = $ac * $fx[$cx];
-				}
-			}
-			$l_s[$x] = $l;
-			$l_x[$x] = $slots;
-
-			$a = $a_dc;
-			$slots = array_fill(0, 10, 0.0);
-			foreach ($a_ac as [$cx, $cy, $ac]) {
-				if ($cy === 0) {
-					$a += $ac * $fx[$cx] * 2.0;
-				} else {
-					$slots[[1 => 0, 4, 7, 9][$cy] + $cx] = $ac * $fx[$cx];
-				}
-			}
-			$a_s[$x] = $a;
-			$a_x[$x] = $slots;
+			[$l_s[$x], $l_x[$x]] = self::columnTerms($l_dc, $l_ac, $fx, $l_layout);
+			[$a_s[$x], $a_x[$x]] = self::columnTerms($a_dc, $a_ac, $fx, [1 => 0, 4, 7, 9, 10]);
 
 			$p_s[$x] = $p_dc + ($p0 * ($fx[1] * 2.0)) + ($p1 * ($fx[2] * 2.0));
 			$q_s[$x] = $q_dc + ($q0 * ($fx[1] * 2.0)) + ($q1 * ($fx[2] * 2.0));
@@ -466,29 +449,44 @@ class Codec
 			$fy6 = cos((M_PI / $h) * ($y + 0.5) * 6) * 2;
 			for ($x = 0; $x < $w; $x++) {
 				$t = $l_x[$x];
-				$l =
-					$l_s[$x] +
-					($t[0] * $fy1) +
-					($t[1] * $fy1) +
-					($t[2] * $fy1) +
-					($t[3] * $fy1) +
-					($t[4] * $fy1) +
-					($t[5] * $fy1) +
-					($t[6] * $fy2) +
-					($t[7] * $fy2) +
-					($t[8] * $fy2) +
-					($t[9] * $fy2) +
-					($t[10] * $fy2) +
-					($t[11] * $fy3) +
-					($t[12] * $fy3) +
-					($t[13] * $fy3) +
-					($t[14] * $fy3) +
-					($t[15] * $fy4) +
-					($t[16] * $fy4) +
-					($t[17] * $fy4) +
-					($t[18] * $fy5) +
-					($t[19] * $fy5) +
-					($t[20] * $fy6);
+				if ($l_small) {
+					$l =
+						$l_s[$x] +
+						($t[0] * $fy1) +
+						($t[1] * $fy1) +
+						($t[2] * $fy1) +
+						($t[3] * $fy1) +
+						($t[4] * $fy2) +
+						($t[5] * $fy2) +
+						($t[6] * $fy2) +
+						($t[7] * $fy3) +
+						($t[8] * $fy3) +
+						($t[9] * $fy4);
+				} else {
+					$l =
+						$l_s[$x] +
+						($t[0] * $fy1) +
+						($t[1] * $fy1) +
+						($t[2] * $fy1) +
+						($t[3] * $fy1) +
+						($t[4] * $fy1) +
+						($t[5] * $fy1) +
+						($t[6] * $fy2) +
+						($t[7] * $fy2) +
+						($t[8] * $fy2) +
+						($t[9] * $fy2) +
+						($t[10] * $fy2) +
+						($t[11] * $fy3) +
+						($t[12] * $fy3) +
+						($t[13] * $fy3) +
+						($t[14] * $fy3) +
+						($t[15] * $fy4) +
+						($t[16] * $fy4) +
+						($t[17] * $fy4) +
+						($t[18] * $fy5) +
+						($t[19] * $fy5) +
+						($t[20] * $fy6);
+				}
 
 				$f = $fx1[$x] * $fy1;
 				$p = $p_s[$x] + ($p2 * $fy1) + ($p3 * $f) + ($p4 * $fy2);
@@ -551,6 +549,29 @@ class Codec
 		}
 
 		return ['w' => $w, 'h' => $h, 'rgba' => $rgba, 'transparent' => $transparent];
+	}
+
+	/**
+	 * Returns the sum of the DC term and the first row of terms, and the slots of the further rows of terms for a column
+	 *
+	 * @param list<array{int, int, float}> $terms horizontal and vertical frequency, and factor of the AC terms
+	 * @param list<float> $fx horizontal cosines of the column
+	 * @param array<int, non-negative-int> $layout first slot of each row of terms, and the number of slots
+	 * @return array{float, list<float>}
+	 */
+	private static function columnTerms(float|int $dc, array $terms, array $fx, array $layout): array
+	{
+		$sum = $dc;
+		$slots = array_fill(0, $layout[count($layout)], 0.0);
+		foreach ($terms as [$cx, $cy, $ac]) {
+			if ($cy === 0) {
+				$sum += $ac * $fx[$cx] * 2.0;
+			} else {
+				$slots[$layout[$cy] + $cx] = $ac * $fx[$cx];
+			}
+		}
+
+		return [$sum, $slots];
 	}
 
 	/**
