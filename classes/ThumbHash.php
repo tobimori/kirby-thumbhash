@@ -4,7 +4,6 @@ namespace tobimori;
 
 use Kirby\Cms\App;
 use Kirby\Cms\File;
-use Kirby\Cms\FileVersion;
 use Kirby\Exception\Exception;
 use Kirby\Filesystem\Asset;
 use tobimori\Driver\GdDriver;
@@ -111,14 +110,18 @@ class ThumbHash
 		$max = self::toFloat($kirby->option('tobimori.thumbhash.sampleMaxSize')) ?? 32;
 		$width = (int)round($ratio >= 1 ? $max : $max * $ratio);
 		$height = (int)round($ratio < 1 ? $max : $max / $ratio);
-		$driver = $kirby->option('tobimori.thumbhash.engine') === 'imagick' ? ImagickDriver::class : GdDriver::class;
+		$driver = match ($kirby->option('tobimori.thumbhash.engine')) {
+			'gd' => GdDriver::class,
+			'imagick' => ImagickDriver::class,
+			default => ImagickDriver::isAvailable() ? ImagickDriver::class : GdDriver::class
+		};
 
 		try {
 			if (!$driver::isAvailable()) {
 				throw new Exception($driver === ImagickDriver::class ? 'Imagick extension is not available' : 'GD extension is not available');
 			}
 
-			$sample = Sampler::sample($file, $driver, $width, $height) ?? self::thumbSample($file, $driver, $width, $height);
+			[$width, $height, $pixels] = Sampler::sample($file, $driver, $width, $height);
 		} catch (\Exception $e) {
 			if ($kirby->option('debug')) {
 				throw new Exception("[ThumbHash] Failed to sample {$file->filename()}: {$e->getMessage()}");
@@ -126,11 +129,6 @@ class ThumbHash
 			return null;
 		}
 
-		if ($sample === null) {
-			return null;
-		}
-
-		[$width, $height, $pixels] = $sample;
 		$thumbhash = Codec::toString(Codec::encode($width, $height, $pixels));
 
 		$cacheData[$ratioKey] = $thumbhash;
@@ -139,38 +137,6 @@ class ThumbHash
 		$memo[$file] = $hashes;
 
 		return $thumbhash;
-	}
-
-	/**
-	 * Samples the image with a Kirby thumb, for images that the driver can't read in memory
-	 *
-	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
-	 * @return array{int, int, list<int>}|null
-	 */
-	private static function thumbSample(Asset|File $file, string $driver, int $width, int $height): array|null
-	{
-		$thumb = $file->thumb([
-			'width' => $width,
-			'height' => $height,
-			'crop' => true,
-			'quality' => 70
-		]);
-
-		// thumb() returns the original file for non-resizable types (svg, etc.)
-		// or when the job file can't be created: only proceed with actual thumbnails
-		// https://github.com/tobimori/kirby-thumbhash/issues/10
-		if (!$thumb instanceof FileVersion) {
-			return null;
-		}
-
-		// check if dimensions differ by more than 10px
-		if (abs($thumb->width() - $width) > 10 || abs($thumb->height() - $height) > 10) {
-			$thumb->delete(); // do not keep thumbs with wrong w/h. remove the thumb and try again next time
-
-			throw new Exception('Image could not be resized to expected sample dimensions, will retry');
-		}
-
-		return $driver::extractPixels($thumb->read() ?: throw new Exception('Unable to read the sample image'));
 	}
 
 	/**

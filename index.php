@@ -44,7 +44,7 @@ App::plugin('tobimori/thumbhash', [
 	'options' => [
 		'cache.encode' => true,
 		'cache.decode' => true,
-		'engine' => 'gd', // Image processing driver: 'gd' or 'imagick'
+		'engine' => null, // Image processing driver: 'gd' or 'imagick', null uses Imagick if available
 		'blurRadius' => 1, // Blur radius, larger values are smoother, but less accurate
 		'sampleMaxSize' => 32 // Max width or height of the sample image that gets encoded
 	],

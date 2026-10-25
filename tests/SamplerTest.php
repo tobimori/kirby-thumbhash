@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 use tobimori\Driver\GdDriver;
 use tobimori\Driver\ImagickDriver;
 use tobimori\Sampler;
+use tobimori\Tests\Reference\Reference;
 
 class SamplerTest extends TestCase
 {
@@ -52,11 +53,10 @@ class SamplerTest extends TestCase
 	{
 		$asset = self::asset("image.{$extension}", $content);
 		// the Imagick export doesn't convert CMYK
-		[$sourceWidth, $sourceHeight, $source] = GdDriver::extractPixels($content);
+		[$sourceWidth, $sourceHeight, $source] = Reference::gdPixels($content);
 
 		$sample = Sampler::sample($asset, $driver, $width, $height);
 
-		$this->assertNotNull($sample);
 		$this->assertSame([$width, $height], [$sample[0], $sample[1]]);
 		$expected = self::areaAverage($source, $sourceWidth, $sourceHeight, $width, $height);
 		$this->assertLessThan(1, self::premultipliedRms($expected, $sample[2]));
@@ -106,13 +106,13 @@ class SamplerTest extends TestCase
 		};
 		$content = (string)ob_get_clean();
 		$asset = self::asset("large.{$extension}", $content);
-		[$sourceWidth, $sourceHeight, $source] = GdDriver::extractPixels($content);
+		[$sourceWidth, $sourceHeight, $source] = Reference::gdPixels($content);
 
 		$sample = Sampler::sample($asset, $driver, 32, 24);
 
-		$this->assertSame([32, 24], [$sample[0] ?? null, $sample[1] ?? null]);
+		$this->assertSame([32, 24], [$sample[0], $sample[1]]);
 		$expected = self::areaAverage($source, $sourceWidth, $sourceHeight, 32, 24);
-		$this->assertLessThan(3, self::premultipliedRms($expected, $sample[2] ?? []));
+		$this->assertLessThan(3, self::premultipliedRms($expected, $sample[2]));
 	}
 
 	public function testSampleDoesNotScaleUp(): void
@@ -121,7 +121,7 @@ class SamplerTest extends TestCase
 
 		$sample = Sampler::sample($asset, GdDriver::class, 200, 150);
 
-		$this->assertSame([100, 75], [$sample[0] ?? null, $sample[1] ?? null]);
+		$this->assertSame([100, 75], [$sample[0], $sample[1]]);
 	}
 
 	/**
@@ -157,9 +157,8 @@ class SamplerTest extends TestCase
 		$expected = Sampler::sample($upright, $driver, 25, 15);
 		$sample = Sampler::sample($turned, $driver, 25, 15);
 
-		$this->assertSame([25, 15], [$sample[0] ?? null, $sample[1] ?? null]);
-		$this->assertNotNull($expected);
-		$this->assertLessThan(3, self::premultipliedRms($expected[2], $sample[2] ?? []));
+		$this->assertSame([25, 15], [$sample[0], $sample[1]]);
+		$this->assertLessThan(3, self::premultipliedRms($expected[2], $sample[2]));
 	}
 
 	#[RequiresPhpExtension('imagick')]
@@ -182,7 +181,7 @@ class SamplerTest extends TestCase
 				return [];
 			}
 
-			return Sampler::sample($file, GdDriver::class, 10, 10)[2] ?? [];
+			return Sampler::sample($file, GdDriver::class, 10, 10)[2];
 		};
 
 		$this->assertSame([255, 0, 0, 255], array_slice($sample('0% 50%'), 0, 4));

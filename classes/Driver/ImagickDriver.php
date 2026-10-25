@@ -2,8 +2,8 @@
 
 namespace tobimori\Driver;
 
+use Exception;
 use Imagick;
-use ImagickException;
 
 use function ceil;
 use function extension_loaded;
@@ -13,34 +13,9 @@ use function round;
 
 class ImagickDriver implements ImageDriver
 {
-	/**
-	 * Extract image data using Imagick extension
-	 *
-	 * @return array{int, int, list<int>}
-	 */
-	public static function extractPixels(string $content): array
+	public static function sample(string $file, int $x, int $y, int $cropWidth, int $cropHeight, int $width, int $height): array
 	{
-		$image = new Imagick();
-		$image->readImageBlob($content);
-
-		$width = $image->getImageWidth();
-		$height = $image->getImageHeight();
-
-		/** @var list<int> $pixels */
-		$pixels = $image->exportImagePixels(0, 0, $width, $height, 'RGBA', Imagick::PIXEL_CHAR);
-
-		$image->clear();
-		$image->destroy();
-
-		return [$width, $height, $pixels];
-	}
-
-	public static function sample(string $file, int $x, int $y, int $cropWidth, int $cropHeight, int $width, int $height): array|null
-	{
-		$size = getimagesize($file);
-		if ($size === false) {
-			return null;
-		}
+		$size = getimagesize($file) ?: throw new Exception('Unable to read the image size');
 
 		$image = new Imagick();
 		try {
@@ -68,8 +43,6 @@ class ImagickDriver implements ImageDriver
 
 			/** @var list<int> */
 			return $image->exportImagePixels(0, 0, $width, $height, 'RGBA', Imagick::PIXEL_CHAR);
-		} catch (ImagickException) {
-			return null;
 		} finally {
 			$image->clear();
 		}

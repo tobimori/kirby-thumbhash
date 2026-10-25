@@ -17,17 +17,6 @@ namespace Kirby\Cms {
 		use \Kirby\Filesystem\IsFile;
 		public static array $methods = [];
 	}
-
-	/**
-	 * @method string|false read()
-	 * @method int width()
-	 * @method int height()
-	 * @method bool delete()
-	 */
-	class FileVersion
-	{
-		use \Kirby\Filesystem\IsFile;
-	}
 }
 
 namespace Kirby\Filesystem {

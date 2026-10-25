@@ -1,8 +1,6 @@
 <?php
 
 use tobimori\Codec;
-use tobimori\Driver\GdDriver;
-use tobimori\Driver\ImagickDriver;
 use tobimori\Tests\Images;
 use tobimori\Tests\Reference\Reference;
 use tobimori\ThumbHash;
@@ -34,7 +32,6 @@ $measure = static function (Closure ...$runs): array {
 	return $best;
 };
 
-$files = Images::files();
 $photo = Images::create(100, 75, 'photo', 'opaque', 1);
 $alpha = Images::create(100, 100, 'photo', 'shape', 2);
 $opaqueHash = Codec::encode(100, 75, $photo);
@@ -51,17 +48,6 @@ function decode_png(array $hash): string
 }
 
 $cases = [
-	'gd jpeg' => [static fn () => Reference::gdPixels($files['100x75 opaque jpeg']), static fn () => GdDriver::extractPixels($files['100x75 opaque jpeg'])],
-	'gd png alpha' => [static fn () => Reference::gdPixels($files['100x100 shape png']), static fn () => GdDriver::extractPixels($files['100x100 shape png'])],
-	'gd gif' => [static fn () => Reference::gdPixels($files['100x100 shape gif']), static fn () => GdDriver::extractPixels($files['100x100 shape gif'])],
-	'imagick jpeg' => [
-		static fn () => Reference::imagickPixels($files['100x75 opaque jpeg']),
-		static fn () => ImagickDriver::extractPixels($files['100x75 opaque jpeg'])
-	],
-	'imagick png alpha' => [
-		static fn () => Reference::imagickPixels($files['100x100 shape png']),
-		static fn () => ImagickDriver::extractPixels($files['100x100 shape png'])
-	],
 	'encode opaque' => [static fn () => Reference::encode(100, 75, $photo), static fn () => Codec::encode(100, 75, $photo)],
 	'encode alpha' => [static fn () => Reference::encode(100, 100, $alpha), static fn () => Codec::encode(100, 100, $alpha)],
 	'decode opaque' => [
@@ -82,7 +68,7 @@ $cases = [
 
 printf("%-20s %12s %12s %9s\n", 'case', 'reference', 'current', 'speedup');
 foreach ($cases as $name => [$reference, $current]) {
-	if (!str_contains($name, $filter) || str_starts_with($name, 'imagick') && !ImagickDriver::isAvailable()) {
+	if (!str_contains($name, $filter)) {
 		continue;
 	}
 

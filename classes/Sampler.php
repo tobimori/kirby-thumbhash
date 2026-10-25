@@ -2,6 +2,7 @@
 
 namespace tobimori;
 
+use Exception;
 use Kirby\Cms\File;
 use Kirby\Content\Field;
 use Kirby\Filesystem\Asset;
@@ -24,16 +25,13 @@ class Sampler
 	 * Crops the image to the ratio of the size around its focus point and scales it down to the size at most
 	 *
 	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
-	 * @return array{int, int, list<int>}|null width, height, and RGBA pixel data, or null if the driver can't read the image
+	 * @return array{int, int, list<int>} width, height, and RGBA pixel data
+	 * @throws Exception if the driver can't read the image
 	 */
-	public static function sample(Asset|File $file, string $driver, int $width, int $height): array|null
+	public static function sample(Asset|File $file, string $driver, int $width, int $height): array
 	{
-		$root = $file->root();
-		$size = $root === null ? false : getimagesize($root);
-		if ($root === null || $size === false) {
-			return null;
-		}
-		[$sourceWidth, $sourceHeight] = $size;
+		$root = $file->root() ?? throw new Exception('The file has no root');
+		[$sourceWidth, $sourceHeight] = getimagesize($root) ?: throw new Exception('Unable to read the image size');
 
 		$orientation = $file->exif()->orientation();
 		$rotated = $orientation >= 5 && $orientation <= 8;
@@ -81,9 +79,6 @@ class Sampler
 			$width,
 			$height
 		);
-		if ($pixels === null) {
-			return null;
-		}
 
 		if ($orientation < 2 || $orientation > 8) {
 			return [$width, $height, $pixels];

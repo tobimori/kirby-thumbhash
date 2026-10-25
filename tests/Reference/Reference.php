@@ -3,7 +3,6 @@
 namespace tobimori\Tests\Reference;
 
 use Exception;
-use Imagick;
 use Thumbhash\Thumbhash;
 
 /**
@@ -41,34 +40,6 @@ class Reference
 				$pixels[] = $alpha;
 			}
 		}
-
-		return [$width, $height, $pixels];
-	}
-
-	/**
-	 * @return array{int, int, list<int>}
-	 */
-	public static function imagickPixels(string $content): array
-	{
-		$image = new Imagick();
-		$image->readImageBlob($content);
-
-		$width = $image->getImageWidth();
-		$height = $image->getImageHeight();
-
-		$pixels = [];
-		for ($y = 0; $y < $height; $y++) {
-			for ($x = 0; $x < $width; $x++) {
-				$colors = $image->getImagePixelColor($x, $y)->getColor(2);
-				$pixels[] = (int)$colors['r'];
-				$pixels[] = (int)$colors['g'];
-				$pixels[] = (int)$colors['b'];
-				$pixels[] = (int)$colors['a'];
-			}
-		}
-
-		$image->clear();
-		$image->destroy();
 
 		return [$width, $height, $pixels];
 	}

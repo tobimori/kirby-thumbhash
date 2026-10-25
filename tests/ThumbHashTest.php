@@ -84,13 +84,13 @@ class ThumbHashTest extends TestCase
 		ThumbHash::clearCache($asset);
 		$this->assertSame($hash, ThumbHash::encode($asset));
 
-		// the sample keeps the aspect ratio and the average color of the whole image
+		// the sample keeps the aspect ratio and the average color of the whole image, the hash has 4 bits for the average alpha
 		$reference = Reference::fromString(Reference::toString(Reference::encode(...Reference::gdPixels($content))));
 		$this->assertSame(Reference::decode($reference)['width'], ThumbHash::decode($hash)['width']);
 		$this->assertSame(Reference::decode($reference)['height'], ThumbHash::decode($hash)['height']);
 		$average = Reference::averageRgba(Reference::fromString($hash));
 		foreach (Reference::averageRgba($reference) as $channel => $value) {
-			$this->assertEqualsWithDelta($value, $average[$channel], 0.05, $channel);
+			$this->assertEqualsWithDelta($value, $average[$channel], $channel === 'a' ? 0.07 : 0.05, $channel);
 		}
 	}
 }
