@@ -10,13 +10,23 @@ use tobimori\Driver\GdDriver;
 use tobimori\Driver\ImagickDriver;
 use WeakMap;
 
+use function count;
 use function is_array;
+use function is_numeric;
 use function is_string;
+use function min;
+use function number_format;
+use function preg_match;
+use function preg_replace;
+use function rawurlencode;
+use function round;
+use function sprintf;
+use function str_replace;
 
 class ThumbHash
 {
 	/**
-	 * ThumbHashes of the files in this request per ratio, to read the cache only once per file
+	 * ThumbHashes of this request per file and ratio, so the cache is read at most once for each
 	 *
 	 * @var WeakMap<Asset|File, array<string, string>>|null
 	 */
@@ -95,7 +105,7 @@ class ThumbHash
 		$cache = $kirby->cache('tobimori.thumbhash.encode');
 		$cacheData = $cache->get($id);
 
-		// backwards compat: migrate old string cache entries
+		// Older cache entries are a string with the hash for the file's own aspect ratio
 		if (is_string($cacheData)) {
 			$cacheData = [(string)$file->ratio() => $cacheData];
 		}
@@ -107,7 +117,7 @@ class ThumbHash
 			return $cacheData[$ratioKey];
 		}
 
-		$max = self::toFloat($kirby->option('tobimori.thumbhash.sampleMaxSize')) ?? 32;
+		$max = min(100, self::toFloat($kirby->option('tobimori.thumbhash.sampleMaxSize')) ?? 32);
 		$width = (int)round($ratio >= 1 ? $max : $max * $ratio);
 		$height = (int)round($ratio < 1 ? $max : $max / $ratio);
 		$driver = match ($kirby->option('tobimori.thumbhash.engine')) {
@@ -140,7 +150,7 @@ class ThumbHash
 	}
 
 	/**
-	 * Decodes a ThumbHash string or array to an array of RGBA values, and width & height
+	 * Decodes a ThumbHash to a PNG data URI, its size, and whether it has transparent pixels
 	 *
 	 * @param string|list<int> $thumbhash
 	 * @return array{uri: string, width: int, height: int, transparent: bool}
@@ -152,7 +162,7 @@ class ThumbHash
 			return self::$images[$id];
 		}
 
-		// a few hundred decoded images are enough for a page, long running processes shouldn't keep all of them
+		// Limit the memory use of long-running processes
 		if (count(self::$images) >= 500) {
 			self::$images = [];
 		}
@@ -234,10 +244,11 @@ class ThumbHash
 	}
 
 	/**
-	 * Clears encoding cache for a file.
+	 * Clears the encoding cache of a file
 	 */
-	public static function clearCache(Asset|File $file)
+	public static function clearCache(Asset|File $file): void
 	{
+		// Other objects of the same file can have memo entries
 		self::$hashes = null;
 		App::instance()->cache('tobimori.thumbhash.encode')->remove(self::getId($file));
 	}
@@ -253,8 +264,7 @@ class ThumbHash
 		$width = number_format($image['width'], 2, '.', '');
 		$height = number_format($image['height'], 2, '.', '');
 
-		// If the image doesn't include an alpha channel itself, apply an additional filter
-		// to remove the alpha channel from the blur at the edges
+		// For opaque images, make the blurred edges opaque again
 		$alphaFilter = $image['transparent'] ? '' : '<feComponentTransfer><feFuncA type="discrete" tableValues="1 1"></feFuncA></feComponentTransfer>';
 
 		$svg = self::encodeUri(
@@ -263,7 +273,7 @@ class ThumbHash
 				'<image filter="url(#b)" x="0" y="0" width="100%" height="100%" href="'
 		);
 
-		// Base64 data URIs only have three characters to encode
+		// In base64 data URIs, encodeUri() only changes '+', ';', and ','
 		$uri = $image['uri'];
 		$uri = preg_match('#^[A-Za-z0-9+/=:;,]*$#D', $uri) === 1
 			? str_replace(['+', ';', ','], ['%2B', '%3B', '%2C'], $uri)
@@ -281,7 +291,7 @@ class ThumbHash
 	}
 
 	/**
-	 * Returns a decoded BlurHash as a URI-encoded SVG with blur filter applied.
+	 * Returns a decoded ThumbHash as a blurred SVG data URI, or as its PNG data URI if the blur radius is 0
 	 *
 	 * @param array{uri: string, width: int, height: int, transparent: bool} $image
 	 * @param float|array|null $blurRadius blur radius (default from config), an options array is deprecated

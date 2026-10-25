@@ -7,6 +7,7 @@ namespace Kirby\Cms {
 	 * @method bool isResizable()
 	 * @method float ratio()
 	 * @method \Kirby\Image\Exif exif()
+	 * @method \Kirby\Content\Field focus()
 	 */
 	class File extends ModelWithContent
 	{

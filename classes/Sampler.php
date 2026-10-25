@@ -4,7 +4,6 @@ namespace tobimori;
 
 use Exception;
 use Kirby\Cms\File;
-use Kirby\Content\Field;
 use Kirby\Filesystem\Asset;
 use Kirby\Image\Focus;
 use tobimori\Driver\GdDriver;
@@ -22,7 +21,8 @@ use function min;
 class Sampler
 {
 	/**
-	 * Crops the image to the ratio of the size around its focus point and scales it down to the size at most
+	 * Crops the image to the aspect ratio of $width x $height around its focus point, scales it down to at most that size,
+	 * and turns it upright by its EXIF orientation
 	 *
 	 * @param class-string<GdDriver>|class-string<ImagickDriver> $driver
 	 * @return array{int, int, list<int>} width, height, and RGBA pixel data
@@ -34,14 +34,12 @@ class Sampler
 		[$sourceWidth, $sourceHeight] = getimagesize($root) ?: throw new Exception('Unable to read the image size');
 
 		$orientation = $file->exif()->orientation();
-		$rotated = $orientation >= 5 && $orientation <= 8;
-		if ($rotated) {
+		if ($orientation >= 5 && $orientation <= 8) {
 			[$width, $height] = [$height, $width];
 		}
 
-		// The focus point is set on the upright image, the source is read without its orientation
-		$focus = $file instanceof File ? $file->content()->get('focus') : null;
-		$focus = $focus instanceof Field ? $focus->value() : null;
+		// The focus point refers to the upright image, but the drivers read the pixels without the EXIF orientation
+		$focus = $file instanceof File ? $file->focus()->value() : null;
 		/** @var array{float, float} $point */
 		$point = Focus::parse(Focus::normalize(is_string($focus) && $focus !== '' ? $focus : 'center'));
 		[$x, $y] = $point;
@@ -66,7 +64,7 @@ class Sampler
 		$left = min(max(0, ($sourceWidth * $x) - ($cropWidth / 2)), $sourceWidth - $cropWidth);
 		$top = min(max(0, ($sourceHeight * $y) - ($cropHeight / 2)), $sourceHeight - $cropHeight);
 
-		// Thumbs don't scale up
+		// Like Kirby thumbs, don't scale up
 		$width = (int)max(1, min($width, floor($cropWidth)));
 		$height = (int)max(1, min($height, floor($cropHeight)));
 

@@ -41,7 +41,7 @@ class GdDriver implements ImageDriver
 			throw new Exception("GD can't read {$size['mime']} images");
 		}
 
-		// A fatal error would end the request
+		// Running out of memory is a fatal error that can't be caught. GD needs up to about 6 bytes per pixel.
 		$limit = Str::toBytes((string)ini_get('memory_limit'));
 		if ($limit > 0 && (memory_get_usage() + (6 * $size[0] * $size[1])) > $limit) {
 			throw new Exception("Not enough memory to read a {$size[0]}x{$size[1]} image with GD");
@@ -54,7 +54,8 @@ class GdDriver implements ImageDriver
 			throw new Exception('Unable to read the image with GD');
 		}
 
-		// imagecopyresampled() reads every covered pixel, the average of 16 × 16 point samples per sample pixel is almost the same
+		// imagecopyresampled() reads every covered pixel, which is slow for large images. Point samples on a grid of at most
+		// 16 x 16 per sample pixel give almost the same average.
 		$stepWidth = min($cropWidth, 16 * $width);
 		$stepHeight = min($cropHeight, 16 * $height);
 		if ($stepWidth < $cropWidth || $stepHeight < $cropHeight) {
@@ -67,11 +68,11 @@ class GdDriver implements ImageDriver
 			$cropHeight = $stepHeight;
 		}
 
-		// imagescale() shifts the content when it scales down a lot, imagecopyresampled() averages the covered pixels
+		// imagescale() shifts the content at large reduction factors, imagecopyresampled() averages the covered pixels
 		$sample = self::canvas($width, $height);
 		imagecopyresampled($sample, $image, 0, 0, $x, $y, $width, $height, $cropWidth, $cropHeight);
 
-		// GD only supports 7-bit alpha channel
+		// GD alpha goes from 0 (opaque) to 127 (transparent)
 		$alphas = [];
 		for ($alpha = 0; $alpha < 128; $alpha++) {
 			$alphas[$alpha] = 255 - (int)ceil(($alpha * 255) / 127);

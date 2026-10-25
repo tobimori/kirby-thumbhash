@@ -19,13 +19,14 @@ class ImagickDriver implements ImageDriver
 
 		$image = new Imagick();
 		try {
-			// libjpeg decodes at a fraction of the size, its scaled transform drifts from the area average below 16 pixels per sample
-			$scale = max((16 * $width) / $cropWidth, (16 * $height) / $cropHeight);
-			if ($scale < 1) {
-				$image->setOption('jpeg:size', (int)ceil($size[0] * $scale) . 'x' . (int)ceil($size[1] * $scale));
+			// With the size hint, libjpeg decodes at 1/2, 1/4, or 1/8 of the size. Below 16 decoded pixels per sample pixel on
+			// each axis, its scaling drifts from the area average.
+			$hintScale = max((16 * $width) / $cropWidth, (16 * $height) / $cropHeight);
+			if ($hintScale < 1) {
+				$image->setOption('jpeg:size', (int)ceil($size[0] * $hintScale) . 'x' . (int)ceil($size[1] * $hintScale));
 			}
-			$image->readImage($file);
-			$image->setFirstIterator();
+			// [0] reads only the first frame of animated images
+			$image->readImage("{$file}[0]");
 
 			if ($image->getImageColorspace() === Imagick::COLORSPACE_CMYK) {
 				$image->transformImageColorspace(Imagick::COLORSPACE_SRGB);

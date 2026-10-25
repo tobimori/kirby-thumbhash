@@ -45,8 +45,8 @@ App::plugin('tobimori/thumbhash', [
 		'cache.encode' => true,
 		'cache.decode' => true,
 		'engine' => null, // Image processing driver: 'gd' or 'imagick', null uses Imagick if available
-		'blurRadius' => 1, // Blur radius, larger values are smoother, but less accurate
-		'sampleMaxSize' => 32 // Max width or height of the sample image that gets encoded
+		'blurRadius' => 1, // SVG blur radius, 0 returns the PNG data URI
+		'sampleMaxSize' => 32 // Max width or height of the sample image that gets encoded, at most 100
 	],
 	'hooks' => [
 		'file.update:before' => fn (File $file) => ThumbHash::clearCache($file),

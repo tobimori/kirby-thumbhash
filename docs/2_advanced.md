@@ -112,7 +112,7 @@ return [
 The plugin supports two image processing drivers:
 
 - **Imagick** (default if available): Uses the Imagick extension. Faster for large JPEG files, because it reads them at a reduced size.
-- **GD** (default otherwise): Uses PHP's built-in GD extension. Almost always available. GD holds the whole image in memory, so it can't sample images that exceed the PHP memory limit.
+- **GD** (default otherwise): Uses PHP's GD extension, which the plugin requires. GD holds the whole image in memory, so it can't sample images that exceed the PHP memory limit.
 
 The driver scales the original image down in memory to a sample, cropped around the focus point and turned upright by its EXIF orientation, like Kirby's thumbs. The plugin doesn't write sample thumbs to the `media` folder.
 

@@ -9,12 +9,14 @@ use function array_fill;
 use function array_map;
 use function base64_decode;
 use function base64_encode;
+use function chr;
 use function cos;
 use function count;
 use function hash;
 use function implode;
 use function max;
 use function min;
+use function ord;
 use function pack;
 use function range;
 use function round;
@@ -76,7 +78,7 @@ class Codec
 	}
 
 	/**
-	 * Transforms an RGBA image to the luminance, yellow-blue, red-green, and alpha DCT terms of a ThumbHash
+	 * Computes the discrete cosine transform (DCT) terms of the luminance, yellow-blue, red-green, and alpha channels
 	 *
 	 * @internal
 	 * @param list<int> $rgba pixels row by row, w * h * 4 values
@@ -89,8 +91,8 @@ class Codec
 			throw new Exception("{$w}x{$h} doesn't fit in 100x100");
 		}
 
-		// The arithmetic matches the reference implementation operation by operation, so the hashes are the same.
-		// Lookup tables hold the results of the per pixel divisions, and multiplications by cos(0) = 1 are left out.
+		// The floating-point operations and their order match srwiez/thumbhash 1.6.0, so the hashes are bit-identical to it.
+		// Lookup tables hold the per-pixel divisions, and multiplications by cos(0) = 1 are left out.
 		$alphas = array_map(static fn (int $alpha): float => $alpha / 255, range(0, 255));
 		$weights = array_map(static fn (float $alpha): float => $alpha / 255, $alphas);
 
@@ -119,7 +121,7 @@ class Codec
 			$fx6[$x] = cos((M_PI / $w) * 6 * ($x + 0.5));
 		}
 
-		// Sums of the rows multiplied with the horizontal cosines, per channel and horizontal frequency
+		// Per row, the sum of the pixels times the horizontal cosine, per channel and horizontal frequency
 		$l0 = [];
 		$l1 = [];
 		$l2 = [];
@@ -140,7 +142,7 @@ class Codec
 		$a4 = [];
 
 		if ($opaque) {
-			// A composite atop the average color with an alpha of 1 doesn't depend on the average color
+			// Opaque pixels don't depend on the average color, so this loop doesn't compute it
 			$hasAlpha = false;
 			$weight = $weights[255];
 			for ($y = 0, $j = 0; $y < $h; $y++) {
@@ -195,7 +197,6 @@ class Codec
 				$q2[$y] = $sq2;
 			}
 		} else {
-			// Determine the average color
 			$avg_r = 0.0;
 			$avg_g = 0.0;
 			$avg_b = 0.0;
@@ -219,7 +220,7 @@ class Codec
 			}
 			$hasAlpha = $avg_a < $n;
 
-			// Shares of the average color per alpha value
+			// The average color times (1 - alpha), per alpha value
 			$base_r = array_map(static fn (float $alpha): float => $avg_r * (1 - $alpha), $alphas);
 			$base_g = array_map(static fn (float $alpha): float => $avg_g * (1 - $alpha), $alphas);
 			$base_b = array_map(static fn (float $alpha): float => $avg_b * (1 - $alpha), $alphas);
@@ -232,8 +233,8 @@ class Codec
 			$transparent_p = (($r + $g) / 2) - $b;
 			$transparent_q = $r - $g;
 
-			// Convert the image from RGBA to LPQA (composite atop the average color). The image has alpha, so the
-			// luminance has 5 horizontal frequencies at most, and the alpha terms of transparent pixels are 0.
+			// Composite the pixels atop the average color. With alpha, the luminance has at most 5 horizontal frequencies, and
+			// transparent pixels add nothing to the alpha sums.
 			for ($y = 0, $j = 0; $y < $h; $y++) {
 				$sl0 = 0.0;
 				$sl1 = 0.0;
@@ -307,7 +308,8 @@ class Codec
 			}
 		}
 
-		$l_limit = $hasAlpha ? 5 : 7; // Use fewer luminance bits if there's alpha
+		// With alpha, the hash has room for fewer luminance terms
+		$l_limit = $hasAlpha ? 5 : 7;
 		$lx = (int)max(1, round(($l_limit * $w) / max($w, $h)));
 		$ly = (int)max(1, round(($l_limit * $h) / max($w, $h)));
 
@@ -318,7 +320,6 @@ class Codec
 			}
 		}
 
-		// Encode using the DCT into DC (constant) and normalized AC (varying) terms
 		return [
 			'lx' => $lx,
 			'ly' => $ly,
@@ -332,15 +333,15 @@ class Codec
 	/**
 	 * Encodes a channel with the Discrete Cosine Transform (DCT) into DC (constant) and normalized AC (varying) terms
 	 *
-	 * @param list<array<int, float|int>> $rows sums of the rows multiplied with the horizontal cosines, per horizontal frequency
+	 * @param list<array<int, float>> $rows per horizontal frequency, the row sums of the pixels times the horizontal cosine
 	 * @param array<int, array<int, float>> $fys vertical cosines per vertical frequency
 	 * @return array{float, list<float>, float}
 	 */
 	private static function encodeChannel(array $rows, int $nx, int $ny, array $fys, int $n): array
 	{
-		$dc = 0;
+		$dc = 0.0;
 		$ac = [];
-		$scale = 0;
+		$scale = 0.0;
 
 		for ($cy = 0; $cy < $ny; $cy++) {
 			$fy = $fys[$cy];
@@ -375,7 +376,6 @@ class Codec
 	 */
 	public static function decode(array $hash): array
 	{
-		// Read the constants
 		$header24 = $hash[0] | ($hash[1] << 8) | ($hash[2] << 16);
 		$header16 = $hash[3] | ($hash[4] << 8);
 		$l_dc = ($header24 & 63) / 63;
@@ -391,7 +391,7 @@ class Codec
 		$ly = max(3, $isLandscape ? $header16 & 7 : $l_limit);
 		$a_dc = $hasAlpha ? ($hash[5] & 15) / 15 : 1;
 
-		// Read the varying factors (boost saturation by 1.25x to compensate for quantization)
+		// The AC terms, the chroma terms get 1.25 times their scale to compensate for quantization
 		$ac_start = $hasAlpha ? 6 : 5;
 		$ac_index = 0;
 		$decodeChannel = static function (int $nx, int $ny, float $scale) use ($hash, $ac_start, &$ac_index): array {
@@ -409,18 +409,18 @@ class Codec
 		[[, , $q0], [, , $q1], [, , $q2], [, , $q3], [, , $q4]] = $decodeChannel(3, 3, $q_scale * 1.25);
 		$a_ac = $hasAlpha ? $decodeChannel(5, 5, ($hash[5] >> 4) / 15) : [];
 
-		// Decode using the DCT into RGB
 		$ratio = self::aspectRatio($hash);
 		$w = (int)round($ratio > 1 ? 32 : 32 * $ratio);
 		$h = (int)round($ratio > 1 ? 32 / $ratio : 32);
 
-		// The arithmetic matches the reference implementation operation by operation, so the pixels are the same. The
-		// factors multiplied with the horizontal cosines and the sums of the first row of terms (cos(0) * 2 = 2) only
-		// depend on x. The terms of each further row of the factors get fixed slots of a 7x7 or 5x5 layout, an empty
-		// slot adds a 0. Images with alpha have 5x5 luminance factors at most, and with 5 rows of factors at most the last
-		// two rows of the 7x7 layout are empty.
+		// The floating-point operations and their order match srwiez/thumbhash 1.6.0, so the pixels are bit-identical to it.
+		// Per column, columnTerms() adds the DC term and the terms of row 0 (vertical cosine cos(0) * 2 = 2), and puts each
+		// further term times its horizontal cosine in a fixed slot, so the pixel loop needs no inner loop. Empty slots hold
+		// 0.0. Luminance with at most 5 x 5 terms uses the 5 x 5 layout, with at most 5 rows the last two rows of the
+		// 7 x 7 layout are empty.
+		$layout5 = [1 => 0, 4, 7, 9, 10];
 		$l_small = $lx <= 5 && $ly <= 5;
-		$l_layout = $l_small ? [1 => 0, 4, 7, 9, 10] : [1 => 0, 6, 11, 15, 18, 20, 21];
+		$l_layout = $l_small ? $layout5 : [1 => 0, 6, 11, 15, 18, 20, 21];
 		$l_x = [];
 		$l_s = [];
 		$a_x = [];
@@ -432,7 +432,9 @@ class Codec
 			$fx = array_map(static fn (int $cx): float => cos((M_PI / $w) * ($x + 0.5) * $cx), range(0, 6));
 
 			[$l_s[$x], $l_x[$x]] = self::columnTerms($l_dc, $l_ac, $fx, $l_layout);
-			[$a_s[$x], $a_x[$x]] = self::columnTerms($a_dc, $a_ac, $fx, [1 => 0, 4, 7, 9, 10]);
+			if ($hasAlpha) {
+				[$a_s[$x], $a_x[$x]] = self::columnTerms($a_dc, $a_ac, $fx, $layout5);
+			}
 
 			$p_s[$x] = $p_dc + ($p0 * ($fx[1] * 2.0)) + ($p1 * ($fx[2] * 2.0));
 			$q_s[$x] = $q_dc + ($q0 * ($fx[1] * 2.0)) + ($q1 * ($fx[2] * 2.0));
@@ -514,7 +516,6 @@ class Codec
 				$p = $p_s[$x] + ($p2 * $fy1) + ($p3 * $f) + ($p4 * $fy2);
 				$q = $q_s[$x] + ($q2 * $fy1) + ($q3 * $f) + ($q4 * $fy2);
 
-				// Convert to RGB
 				$b = $l - ((2 / 3) * $p);
 				$r = ((3 * $l) - $b + $q) / 2;
 				$g = $r - $q;
@@ -574,11 +575,11 @@ class Codec
 	}
 
 	/**
-	 * Returns the sum of the DC term and the first row of terms, and the slots of the further rows of terms for a column
+	 * Returns the DC term plus the row 0 terms of a column, and the further terms times their horizontal cosine in layout slots
 	 *
-	 * @param list<array{int, int, float}> $terms horizontal and vertical frequency, and factor of the AC terms
+	 * @param list<array{int, int, float}> $terms horizontal frequency, vertical frequency, and factor of each AC term
 	 * @param list<float> $fx horizontal cosines of the column
-	 * @param array<int, non-negative-int> $layout first slot of each row of terms, and the number of slots
+	 * @param array<int, non-negative-int> $layout first slot of each row from row 1, the last value is the number of slots
 	 * @return array{float, list<float>}
 	 */
 	private static function columnTerms(float|int $dc, array $terms, array $fx, array $layout): array
@@ -680,8 +681,8 @@ class Codec
 	 */
 	public static function fromString(string $hash): array
 	{
-		// Strict decoding rejects the padding of some lengths
-		// @mago-expect lint:strict-behavior
-		return array_map(ord(...), str_split(base64_decode($hash . '=')));
+		$bytes = base64_decode($hash, true);
+
+		return $bytes === false ? [] : array_map(ord(...), str_split($bytes));
 	}
 }

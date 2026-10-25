@@ -27,7 +27,7 @@
 		"ext-gd": "*"
 	},
 	"suggest": {
-		"ext-imagick": "For better performance and quality with Imagick driver"
+		"ext-imagick": "Faster sampling of large JPEG files"
 	},
 	"require-dev": {
 		"carthage-software/mago": "^1.59.0",
