@@ -40,7 +40,7 @@ class ThumbHash
 	private static array $images = [];
 
 	/**
-	 * Creates thumb for an image based on the ThumbHash algorithm, returns a data URI with an SVG filter.
+	 * Creates thumb for an image based on the ThumbHash algorithm, returns a data URI with an SVG filter
 	 *
 	 * @param float|array|null $ratio aspect ratio, an options array is deprecated
 	 * @param float|null $blurRadius blur radius (default from config)
@@ -72,7 +72,7 @@ class ThumbHash
 	}
 
 	/**
-	 * Returns the ThumbHash for a Kirby file object.
+	 * Returns the ThumbHash for a Kirby file object
 	 *
 	 * @param float|array|null $ratio aspect ratio, an options array is deprecated
 	 * @param array $options @deprecated use $ratio parameter instead
@@ -187,6 +187,31 @@ class ThumbHash
 	}
 
 	/**
+	 * Returns a decoded ThumbHash as a blurred SVG data URI, or as its PNG data URI if the blur radius is 0
+	 *
+	 * @param array{uri: string, width: int, height: int, transparent: bool} $image
+	 * @param float|array|null $blurRadius blur radius (default from config), an options array is deprecated
+	 * @param array $options @deprecated use $blurRadius parameter instead
+	 */
+	public static function uri(array $image, float|array|null $blurRadius = null, array $options = []): string
+	{
+		// backwards compatibility: treat an array $blurRadius as options
+		if (is_array($blurRadius)) {
+			$options = [...$blurRadius, ...$options];
+			$blurRadius = null;
+		}
+
+		$blurRadius = self::toFloat($options['blurRadius'] ?? null) ?? $blurRadius;
+		$blurRadius ??= self::toFloat(App::instance()->option('tobimori.thumbhash.blurRadius')) ?? 1.0;
+
+		if ($blurRadius === 0.0) {
+			return $image['uri'];
+		}
+
+		return self::svgUri($image, $blurRadius);
+	}
+
+	/**
 	 * Returns average color from a file's thumbhash as RGBA array
 	 *
 	 * @param float|null $ratio aspect ratio
@@ -289,38 +314,13 @@ class ThumbHash
 		return str_replace(['%2F', '%3A', '%3D'], ['/', ':', '='], rawurlencode($data));
 	}
 
-	/**
-	 * Returns a decoded ThumbHash as a blurred SVG data URI, or as its PNG data URI if the blur radius is 0
-	 *
-	 * @param array{uri: string, width: int, height: int, transparent: bool} $image
-	 * @param float|array|null $blurRadius blur radius (default from config), an options array is deprecated
-	 * @param array $options @deprecated use $blurRadius parameter instead
-	 */
-	public static function uri(array $image, float|array|null $blurRadius = null, array $options = []): string
-	{
-		// backwards compatibility: treat an array $blurRadius as options
-		if (is_array($blurRadius)) {
-			$options = [...$blurRadius, ...$options];
-			$blurRadius = null;
-		}
-
-		$blurRadius = self::toFloat($options['blurRadius'] ?? null) ?? $blurRadius;
-		$blurRadius ??= self::toFloat(App::instance()->option('tobimori.thumbhash.blurRadius')) ?? 1.0;
-
-		if ($blurRadius === 0.0) {
-			return $image['uri'];
-		}
-
-		return self::svgUri($image, $blurRadius);
-	}
-
 	private static function toFloat(mixed $value): float|null
 	{
 		return is_numeric($value) ? (float)$value : null;
 	}
 
 	/**
-	 * Returns the uuid for a File, or its mediaHash for Assets.
+	 * Returns the uuid for a File, or its mediaHash for Assets
 	 */
 	private static function getId(Asset|File $file): string
 	{
