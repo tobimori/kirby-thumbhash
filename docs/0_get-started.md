@@ -11,7 +11,7 @@ This plugin adds ThumbHash support to Kirby, allowing you to implement UX improv
 
 ## Requirements
 
-- Kirby 5.0+
+- Kirby 5 or 6
 - PHP 8.3+
 - `gd` extension (required by Kirby)
 - Optional: `imagick` extension (for better performance / quality)

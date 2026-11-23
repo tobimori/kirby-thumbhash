@@ -54,6 +54,9 @@
 		}
 	},
 	"extra": {
+		"kirby": {
+			"compatible": "^5.0 || ^6.0"
+		},
 		"kirby-cms-path": false
 	}
 }
